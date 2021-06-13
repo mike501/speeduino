@@ -4129,8 +4129,6 @@ void triggerSetEndTeeth_FordST170()
 
   lastToothCalcAdvance = currentStatus.advance;
 }
-<<<<<<< HEAD
-
 
 /*****************************************************************
  * Rover MEMS decoder
@@ -4539,7 +4537,4 @@ void triggerSetEndTeeth_RoverMEMS()
   lastToothCalcAdvance = currentStatus.advance;
 
 }
-=======
 /** @} */
-
->>>>>>> master
