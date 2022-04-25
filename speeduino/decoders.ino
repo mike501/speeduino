@@ -4816,83 +4816,88 @@ void triggerPri_Renix()
 {
   curTime = micros();
   curGap = curTime - renixSystemLastToothTime;
-  VVT1_PIN_OFF() 
-  if ( curGap >= triggerFilterTime )   //  || (currentStatus.startRevolutions == 0) )
+ 
+  if ( curGap >= triggerFilterTime )   
   {
     toothSystemCount++;
     validTrigger = true;
 
-    if( renixSystemLastToothTime != 0 && renixSystemLastMinusOneToothTime != 0)
-    { targetGap = (2 * (renixSystemLastToothTime - renixSystemLastMinusOneToothTime));}  // in real world the physical 2 tooth gap is bigger than 2 teeth - more like 2.5
-    else 
-    { targetGap = 100000000L; } // random large number to stop system thinking we have a gap for the first few teeth on start up
+    if( renixSystemLastToothTime > 0 && renixSystemLastMinusOneToothTime > 0)
+    {
+      targetGap = (2 * (renixSystemLastToothTime - renixSystemLastMinusOneToothTime));  // in real world the physical 2 tooth gap is bigger than 2 teeth - more like 2.5 as it includes bits of the previous tooth
 
-    if( curGap >= targetGap )
-    { 
-      /* add two teeth to account for the gap we've just seen */      
-      toothSystemCount++;
-      toothSystemCount++;
+      if( curGap >= targetGap )
+      { 
+        /* add two teeth to account for the gap we've just seen */      
+        toothSystemCount++;
+        toothSystemCount++;
 
-      if( toothSystemCount != 12) // if not 12 (the first tooth after the gap) then we've lost sync
-      {
-        // lost sync
-// **********************************  for debug only
-        currentStatus.vvt1Angle++;
-//***************************************
-
-        currentStatus.hasSync = false;
-        currentStatus.syncLossCounter++;            
-        toothSystemCount = 1; // first tooth after gap is always 1
-        toothCurrentCount = 1; // Reset as we've lost sync
+        if( toothSystemCount != 12) // if not 12 (the first tooth after the gap) then we've lost sync
+        {
+          // lost sync
+          currentStatus.hasSync = false;
+          BIT_CLEAR(currentStatus.status3, BIT_STATUS3_HALFSYNC); //No sync at all, so also clear HalfSync bit.
+          currentStatus.syncLossCounter++;            
+          toothSystemCount = 1; // first tooth after gap is always 1
+          toothCurrentCount = 1; // Reset as we've lost sync
+        }
       }
+      else
+      {
+        //Recalc the new filter value, only do this on the single gap tooth 
+        setFilter(curGap); 
+      }
+      
+      if(toothSystemCount == 12)
+      {
+        // counted 12 real teeth - need to say we've found one of the 4 or 6 pretend teeth for Renix44 or Renix66 pattern
+        toothCurrentCount++;
+        toothSystemCount = 1;
+        toothLastMinusOneToothTime = toothLastToothTime;
+        toothLastToothTime = curTime; 
+
+        if( (configPage4.TrigPattern == DECODER_RENIX66 && toothCurrentCount == 7) ||    // 6 Pretend teeth on the 66 tooth wheel, if get to severn rotate round back to first tooth
+            (configPage4.TrigPattern == DECODER_RENIX44 && toothCurrentCount == 5 ) )    // 4 Pretend teeth on the 44 tooth wheel, if get to five rotate round back to first tooth
+        {
+          // rotation
+          toothOneMinusOneTime = toothOneTime;
+          toothOneTime = curTime;
+          currentStatus.hasSync = true;
+          currentStatus.startRevolutions++; //Counter               
+          revolutionOne = !revolutionOne;
+          toothCurrentCount = 1;  
+        }
+        
+        //NEW IGNITION MODE
+        if( (configPage2.perToothIgn == true) && (!BIT_CHECK(currentStatus.engine, BIT_ENGINE_CRANK)) ) 
+        {
+          int16_t crankAngle = ( (toothCurrentCount - 1) * triggerToothAngle ) + configPage4.triggerAngle;
+          crankAngle = ignitionLimits(crankAngle);
+          if( (configPage4.sparkMode == IGN_MODE_SEQUENTIAL) && (revolutionOne == true) && (configPage4.TrigSpeed == CRANK_SPEED) )
+          {
+            crankAngle += 360;
+            checkPerToothTiming(crankAngle, (configPage4.triggerTeeth + toothCurrentCount)); 
+          }
+          else{ checkPerToothTiming(crankAngle, toothCurrentCount); }
+        }
+      }
+
+      renixSystemLastMinusOneToothTime = renixSystemLastToothTime; // needed for target gap calculation
+      renixSystemLastToothTime = curTime;
     }
     else
-    { 
-      //Recalc the new filter value, only do this on the single gap tooth 
-      setFilter(curGap);  
-    }
-    renixSystemLastMinusOneToothTime = renixSystemLastToothTime; // needed for target gap calculation
-    renixSystemLastToothTime = curTime;
-
-    if( toothSystemCount == 12)
     {
-      toothCurrentCount++;
-
-      if( (configPage4.TrigPattern == DECODER_RENIX66 && toothCurrentCount == 7) ||    // 6 Pretend teeth on the 66 tooth wheel, if get to severn rotate round back to first tooth
-          (configPage4.TrigPattern == DECODER_RENIX44 && toothCurrentCount == 5 ) )    // 4 Pretend teeth on the 44 tooth wheel, if get to five rotate round back to first tooth
-      {
-        toothOneMinusOneTime = toothOneTime;
-        toothOneTime = curTime;
-        currentStatus.hasSync = true;
-        currentStatus.startRevolutions++; //Counter               
-        revolutionOne = !revolutionOne;
-        toothCurrentCount = 1;  
-        VVT1_PIN_ON() 
-      }
-
-      toothSystemCount = 1;
-      toothLastMinusOneToothTime = toothLastToothTime;
-      toothLastToothTime = curTime; 
-
-
-      //NEW IGNITION MODE
-      if( (configPage2.perToothIgn == true) && (!BIT_CHECK(currentStatus.engine, BIT_ENGINE_CRANK)) ) 
-      {
-        int16_t crankAngle = ( (toothCurrentCount - 1) * triggerToothAngle ) + configPage4.triggerAngle;
-        crankAngle = ignitionLimits(crankAngle);
-        if( (configPage4.sparkMode == IGN_MODE_SEQUENTIAL) && (revolutionOne == true) && (configPage4.TrigSpeed == CRANK_SPEED) )
-        {
-          crankAngle += 360;
-          checkPerToothTiming(crankAngle, (configPage4.triggerTeeth + toothCurrentCount)); 
-        }
-        else{ checkPerToothTiming(crankAngle, toothCurrentCount); }
-      }
+      renixSystemLastMinusOneToothTime = renixSystemLastToothTime; // needed for target gap calculation
+      renixSystemLastToothTime = curTime;
     }
+
   } 
 }
 
 
-
+//
+//       Code currently not used - renix init for 44 tooth excludes setting an interupt handler to this code. This is for testing purposes
+//
 void triggerSec_Renix()
 {
   curTime2 = micros();
@@ -4966,6 +4971,9 @@ void triggerSec_Renix()
   }
 }
 
+//
+// Code makes use of .canin[] variables for debug information
+//
 void triggerSetEndTeeth_Renix()
 {
   byte toothAdder = 0;
@@ -4975,27 +4983,11 @@ void triggerSetEndTeeth_Renix()
 
   int16_t tempIgnition1EndTooth;
   tempIgnition1EndTooth = ( (ignition1EndAngle - configPage4.triggerAngle) / (int16_t)(triggerToothAngle) ) - 1;
-  currentStatus.canin[8] = tempIgnition1EndTooth;
   if(tempIgnition1EndTooth > (configPage4.triggerTeeth + toothAdder)) { tempIgnition1EndTooth -= (configPage4.triggerTeeth + toothAdder); }
-  currentStatus.canin[9] = tempIgnition1EndTooth;
   if(tempIgnition1EndTooth <= 0) { tempIgnition1EndTooth += (configPage4.triggerTeeth + toothAdder); }
-  currentStatus.canin[10] = tempIgnition1EndTooth;
   if((uint16_t)tempIgnition1EndTooth > triggerActualTeeth && tempIgnition1EndTooth <= configPage4.triggerTeeth) { tempIgnition1EndTooth = triggerActualTeeth; }
-  currentStatus.canin[11] = tempIgnition1EndTooth;
   if((uint16_t)tempIgnition1EndTooth > (triggerActualTeeth + toothAdder)) { tempIgnition1EndTooth = (triggerActualTeeth + toothAdder); }
   ignition1EndTooth = tempIgnition1EndTooth;
-  currentStatus.canin[12] = tempIgnition1EndTooth;
-  currentStatus.canin[0] = ignition1EndAngle;
-  currentStatus.canin[3] = configPage4.triggerAngle;
-  currentStatus.canin[4] = triggerToothAngle;
-  currentStatus.canin[5] = configPage4.triggerTeeth;
-  currentStatus.canin[6] = toothAdder;
-  currentStatus.canin[7] = triggerActualTeeth;
-  
-
-
-
-
 
   int16_t tempIgnition2EndTooth;
   tempIgnition2EndTooth = ( (ignition2EndAngle - configPage4.triggerAngle) / (int16_t)(triggerToothAngle) ) - 1;
@@ -5006,22 +4998,22 @@ void triggerSetEndTeeth_Renix()
   ignition2EndTooth = tempIgnition2EndTooth;
   currentStatus.canin[1] = ignition2EndTooth;
 
-  int16_t tempIgnition3EndTooth;
-  tempIgnition3EndTooth = ( (ignition3EndAngle - configPage4.triggerAngle) / (int16_t)(triggerToothAngle) ) - 1;
+ int16_t tempIgnition3EndTooth;
+/*  tempIgnition3EndTooth = ( (ignition3EndAngle - configPage4.triggerAngle) / (int16_t)(triggerToothAngle) ) - 1;
   if(tempIgnition3EndTooth > (configPage4.triggerTeeth + toothAdder)) { tempIgnition3EndTooth -= (configPage4.triggerTeeth + toothAdder); }
   if(tempIgnition3EndTooth <= 0) { tempIgnition3EndTooth += (configPage4.triggerTeeth + toothAdder); }
   if((uint16_t)tempIgnition3EndTooth > triggerActualTeeth && tempIgnition3EndTooth <= configPage4.triggerTeeth) { tempIgnition3EndTooth = triggerActualTeeth; }
   if((uint16_t)tempIgnition3EndTooth > (triggerActualTeeth + toothAdder)) { tempIgnition3EndTooth = (triggerActualTeeth + toothAdder); }
   ignition3EndTooth = tempIgnition3EndTooth;
-
+*/
   int16_t tempIgnition4EndTooth;
-  tempIgnition4EndTooth = ( (ignition4EndAngle - configPage4.triggerAngle) / (int16_t)(triggerToothAngle) ) - 1;
+/*  tempIgnition4EndTooth = ( (ignition4EndAngle - configPage4.triggerAngle) / (int16_t)(triggerToothAngle) ) - 1;
   if(tempIgnition4EndTooth > (configPage4.triggerTeeth + toothAdder)) { tempIgnition4EndTooth -= (configPage4.triggerTeeth + toothAdder); }
   if(tempIgnition4EndTooth <= 0) { tempIgnition4EndTooth += (configPage4.triggerTeeth + toothAdder); }
   if((uint16_t)tempIgnition4EndTooth > triggerActualTeeth && tempIgnition4EndTooth <= configPage4.triggerTeeth) { tempIgnition4EndTooth = triggerActualTeeth; }
   if((uint16_t)tempIgnition4EndTooth > (triggerActualTeeth + toothAdder)) { tempIgnition4EndTooth = (triggerActualTeeth + toothAdder); }
   ignition4EndTooth = tempIgnition4EndTooth;
-
+*/
 #if IGN_CHANNELS >= 5
   int16_t tempIgnition5EndTooth;
   tempIgnition5EndTooth = ( (ignition5EndAngle - configPage4.triggerAngle) / (int16_t)(triggerToothAngle) ) - 1;
@@ -5060,6 +5052,19 @@ void triggerSetEndTeeth_Renix()
 #endif
 
   lastToothCalcAdvance = currentStatus.advance;
+
+  currentStatus.canin[0] = lastToothCalcAdvance;
+  currentStatus.canin[1] = tempIgnition1EndTooth;
+  currentStatus.canin[2] = tempIgnition2EndTooth;
+  currentStatus.canin[3] = tempIgnition3EndTooth;
+  currentStatus.canin[4] = tempIgnition4EndTooth;
+
+  currentStatus.canin[5] = ignition1EndAngle;
+  currentStatus.canin[6] = ignition2EndAngle;
+  currentStatus.canin[7] = ignition3EndAngle;
+  currentStatus.canin[8] = ignition4EndAngle;
+    
+
 }
 
 
