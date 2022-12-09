@@ -35,7 +35,7 @@
 #define DECODER_DRZ400            21
 #define DECODER_NGC               22
 #define DECODER_VMAX              23
-#define DECODER_ROVERMEMS		      23
+#define DECODER_ROVERMEMS		      24
 
 #define BIT_DECODER_2ND_DERIV           0 //The use of the 2nd derivative calculation is limited to certain decoders. This is set to either true or false in each decoders setup routine
 #define BIT_DECODER_IS_SEQUENTIAL       1 //Whether or not the decoder supports sequential operation
@@ -218,19 +218,16 @@ void triggerSec_NGC68(void);
 uint16_t getRPM_NGC(void);
 void triggerSetEndTeeth_NGC(void);
 
+void triggerSetup_RoverMEMS(void);
+void triggerPri_RoverMEMS(void);
+void triggerSec_RoverMEMS(void);
+uint16_t getRPM_RoverMEMS(void);
+int getCrankAngle_RoverMEMS(void);
+void triggerSetEndTeeth_RoverMEMS(void);
+
 extern void (*triggerHandler)(void); //Pointer for the trigger function (Gets pointed to the relevant decoder)
 extern void (*triggerSecondaryHandler)(void); //Pointer for the secondary trigger function (Gets pointed to the relevant decoder)
 extern void (*triggerTertiaryHandler)(void); //Pointer for the tertiary trigger function (Gets pointed to the relevant decoder)
-void triggerSetup_RoverMEMS();
-void triggerPri_RoverMEMS();
-void triggerSec_RoverMEMS();
-uint16_t getRPM_RoverMEMS();
-int getCrankAngle_RoverMEMS();
-void triggerSetEndTeeth_RoverMEMS();
-
-extern void (*triggerHandler)(); //Pointer for the trigger function (Gets pointed to the relevant decoder)
-extern void (*triggerSecondaryHandler)(); //Pointer for the secondary trigger function (Gets pointed to the relevant decoder)
-extern void (*triggerTertiaryHandler)(); //Pointer for the tertiary trigger function (Gets pointed to the relevant decoder)
 
 extern uint16_t (*getRPM)(void); //Pointer to the getRPM function (Gets pointed to the relevant decoder)
 extern int (*getCrankAngle)(void); //Pointer to the getCrank Angle function (Gets pointed to the relevant decoder)
