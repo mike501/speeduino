@@ -3366,7 +3366,6 @@ void initialiseTriggers(void)
 	case DECODER_ROVERMEMS:
       //Rover MEMs - covers multiple flywheel trigger combinations.
       triggerSetup_RoverMEMS();
-      decoderHasSecondary = true;
       triggerHandler = triggerPri_RoverMEMS;
       getRPM = getRPM_RoverMEMS;
       triggerSetEndTeeth = triggerSetEndTeeth_RoverMEMS;
