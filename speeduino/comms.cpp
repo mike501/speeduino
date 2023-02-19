@@ -49,7 +49,7 @@ FastCRC32 CRC32_serial; //This instance of CRC32 is exclusively used on the comm
 /**
  * @brief      Flush all remaining bytes from the rx serial buffer
  */
-void flushRXbuffer(void)
+void flushRXbuffer()
 {
   while (Serial.available() > 0) { Serial.read(); }
 }
@@ -609,8 +609,8 @@ void processSerialCommand(void)
 
     case 'S': // send code version
     {
-      byte productString[] = { SERIAL_RC_OK, 'S', 'p', 'e', 'e', 'd', 'u', 'i', 'n', 'o', ' ', '2', '0', '2', '2', '.', '1', '0', '-', 'd', 'e', 'v'};
-      //byte productString[] = { SERIAL_RC_OK, 'S', 'p', 'e', 'e', 'd', 'u', 'i', 'n', 'o', ' ', '2', '0', '2', '2', '0', '7'};
+      //byte productString[] = { SERIAL_RC_OK, 'S', 'p', 'e', 'e', 'd', 'u', 'i', 'n', 'o', ' ', '2', '0', '2', '2', '.', '0', '4', '-', 'd', 'e', 'v'};
+      byte productString[] = { SERIAL_RC_OK, 'S', 'p', 'e', 'e', 'd', 'u', 'i', 'n', 'o', ' ', '2', '0', '2', '2', '0', '7','.','1'};
       sendSerialPayload(&productString, sizeof(productString));
       currentStatus.secl = 0; //This is required in TS3 due to its stricter timings
       break;

@@ -162,18 +162,18 @@ void writeConfig(uint8_t pageNum)
 #else
   uint8_t EEPROM_MAX_WRITE_BLOCK = 20;
 
-  #ifdef CORE_AVR
-    //In order to prevent missed pulses during EEPROM writes on AVR, scale the
-    //maximum write block size based on the RPM.
-    //This calculation is based on EEPROM writes taking approximately 4ms per byte
-    //(Actual value is 3.8ms, so 4ms has some safety margin) 
-    if(currentStatus.RPM > 65) //Min RPM of 65 prevents overflow of uint8_t
-    { 
-      EEPROM_MAX_WRITE_BLOCK = (uint8_t)(15000U / currentStatus.RPM);
-      EEPROM_MAX_WRITE_BLOCK = max(EEPROM_MAX_WRITE_BLOCK, 1);
-      EEPROM_MAX_WRITE_BLOCK = min(EEPROM_MAX_WRITE_BLOCK, 20); //Any higher than this will cause comms timeouts on AVR
-    }
-  #endif
+#ifdef CORE_AVR
+  //In order to prevent missed pulses during EEPROM writes on AVR, scale the
+  //maximum write block size based on the RPM.
+  //This calculation is based on EEPROM writes taking approximately 4ms per byte
+  //(Actual value is 3.8ms, so 4ms has some safety margin) 
+  if(currentStatus.RPM > 65) //Min RPM of 65 prevents overflow of uint8_t
+  { 
+    EEPROM_MAX_WRITE_BLOCK = (uint8_t)(15000U / currentStatus.RPM);
+    EEPROM_MAX_WRITE_BLOCK = max(EEPROM_MAX_WRITE_BLOCK, 1);
+    EEPROM_MAX_WRITE_BLOCK = min(EEPROM_MAX_WRITE_BLOCK, 20); //Any higher than this will cause comms timeouts on AVR
+  }
+#endif
 
 #endif
 
