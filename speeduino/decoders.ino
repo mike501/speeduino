@@ -4789,8 +4789,6 @@ void triggerSetup_RoverMEMS()
   configPage4.triggerTeeth = 36;
   triggerToothAngle = 360 / configPage4.triggerTeeth; //The number of degrees that passes from tooth to tooth 360 / 36 theortical teeth
   triggerActualTeeth = 36; //The number of physical teeth on the wheel. Need to fix now so we can identify the wheel on the first rotation and not risk a  type 1 wheel not being spotted
-//  secondDerivEnabled = false; 
-//  decoderIsSequential = true;
   toothLastMinusOneToothTime = 0;
   toothCurrentCount = 0; // current tooth
   secondaryToothCount = 0;
@@ -4810,8 +4808,6 @@ void triggerPri_RoverMEMS()
 
   if ( curGap >= triggerFilterTime ) //Pulses should never be less than triggerFilterTime, so if they are it means a false trigger. (A 36-1 wheel at 8000pm will have triggers approx. every 200uS)
   {
-  // validTrigger = true; 
-
     if( (toothLastToothTime > 0) && (toothLastMinusOneToothTime > 0) ) // have we seen more than 1 tooth so we start processing
     {   
       //Begin the missing tooth detection
@@ -4824,7 +4820,6 @@ void triggerPri_RoverMEMS()
         toothCurrentCount++; // Increment the tooth counter on the wheel (used to spot a revolution and trigger igition timing)
 
         // the missing tooth gap messing up timing as it appears in different parts of the cycle. Don't update setFilter as it would be wrong with the gap
-//        triggerToothAngleIsCorrect = false;
         toothCurrentCount++;
       }
       else //Regular (non-missing) tooth so update things
@@ -4832,7 +4827,6 @@ void triggerPri_RoverMEMS()
         roverMEMSTeethSeen = roverMEMSTeethSeen << 1; // make a space, shift the bits 1 place to the left
         roverMEMSTeethSeen++; // add the tooth seen
         toothCurrentCount++; //Increment the tooth counter on the wheel (used to spot a revolution)
-//        triggerToothAngleIsCorrect = true;
         setFilter(curGap);
       }
 
@@ -5080,9 +5074,7 @@ uint16_t getRPM_RoverMEMS()
 
   if( currentStatus.RPM < currentStatus.crankRPM)
   {
-    if( 
-//      (triggerToothAngleIsCorrect == true) && 
-        (toothCurrentCount != toothAngles[SKIP_TOOTH1]) && 
+    if( (toothCurrentCount != toothAngles[SKIP_TOOTH1]) && 
         (toothCurrentCount != toothAngles[SKIP_TOOTH2]) && 
         (toothCurrentCount != toothAngles[SKIP_TOOTH3]) && 
         (toothCurrentCount != toothAngles[SKIP_TOOTH4]) )
