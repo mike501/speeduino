@@ -4833,7 +4833,22 @@ void triggerPri_RoverMEMS()
       // reduce checks to minimise cpu load when looking for key point to identify where we are on the wheel
       if( toothCurrentCount >= triggerActualTeeth )
       {                           //12345678901234567890123456789012 
-        if( roverMEMSTeethSeen == 0b11011101111111111111101101111111) // Binary pattern for trigger pattern 3-14-2-13- (#4)
+        if( roverMEMSTeethSeen == 0b11101111111111011111110111111111) // Binary pattern for trigger pattern 9-7-10-6- (#5)
+        {
+          if(toothAngles[ID_TOOTH_PATTERN] != 5)
+          {
+            //teeth to skip when calculating RPM as they've just had a gap
+            toothAngles[SKIP_TOOTH1] = 2;
+            toothAngles[SKIP_TOOTH2] = 8;
+            toothAngles[SKIP_TOOTH3] = 19;
+            toothAngles[SKIP_TOOTH4] = 27;
+            toothAngles[ID_TOOTH_PATTERN] = 5;
+            configPage4.triggerMissingTeeth = 4; // this could be read in from the config file, but people could adjust it.
+            triggerActualTeeth = 36; // should be 32 if not hacking toothcounter 
+          }  
+          triggerRoverMEMSCommon();                         
+        }                             //123456789012345678901234567890123456
+        else if( roverMEMSTeethSeen == 0b11011101111111111111101101111111) // Binary pattern for trigger pattern 3-14-2-13- (#4)
         {
           if(toothAngles[ID_TOOTH_PATTERN] != 4)
           {
