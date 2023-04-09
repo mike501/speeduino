@@ -5089,10 +5089,10 @@ uint16_t getRPM_RoverMEMS()
 
   if( currentStatus.RPM < currentStatus.crankRPM)
   {
-    if( (toothCurrentCount != toothAngles[SKIP_TOOTH1]) && 
-        (toothCurrentCount != toothAngles[SKIP_TOOTH2]) && 
-        (toothCurrentCount != toothAngles[SKIP_TOOTH3]) && 
-        (toothCurrentCount != toothAngles[SKIP_TOOTH4]) )
+    if( (toothCurrentCount != (unsigned int) toothAngles[SKIP_TOOTH1]) && 
+        (toothCurrentCount != (unsigned int) toothAngles[SKIP_TOOTH2]) && 
+        (toothCurrentCount != (unsigned int) toothAngles[SKIP_TOOTH3]) && 
+        (toothCurrentCount != (unsigned int) toothAngles[SKIP_TOOTH4]) )
     { tempRPM = crankingGetRPM(36,360); }
     else
     { tempRPM = currentStatus.RPM; } //Can't do per tooth RPM as the missing tooth messes the calculation
@@ -5106,40 +5106,30 @@ uint16_t getRPM_RoverMEMS()
 void triggerSetEndTeeth_RoverMEMS()
 {
   //Temp variables are used here to avoid potential issues if a trigger interrupt occurs part way through this function
-  int16_t tempIgnitionEndTooth[5]; // cheating with the array - location 1 is spark 1, location 0 not used.
-  
-  // Rover firing order 1342
-  // ignition events vs firing order 
-  // ignition 1 - Cylinder 1 approaching TDC
-  // ignition 2 - Cylinder 3 approaching TDC
-  // ignition 3 - Cylinder 4 approaching TDC
-  // ignition 4 - Cylinder 2 approaching TDC
-  // VR sensor is 55 degrees btdc so need to adjust tooth angle by 55 degrees 
-  // need to ensure any teeth calculated are a gap as the code doesn't know about missing teeth on the wheel - remove 1 tooth from any gaps.
+  int16_t tempIgnitionEndTooth[5]; // cheating with the array - location 1 is spark 1, location 0 not used.   
+  int16_t toothAdder = 0;
 
-  
-  byte toothAdder = 0;
   if( (configPage4.sparkMode == IGN_MODE_SEQUENTIAL) && (configPage4.TrigSpeed == CRANK_SPEED) ) { toothAdder = 36; }
 
   tempIgnitionEndTooth[1] = ( (ignition1EndAngle - configPage4.triggerAngle) / (int16_t)(10) ) - 1;
   if(tempIgnitionEndTooth[1] > (36 + toothAdder)) { tempIgnitionEndTooth[1] -= (36 + toothAdder); }
   if(tempIgnitionEndTooth[1] <= 0) { tempIgnitionEndTooth[1] += (36 + toothAdder); }
-  if((uint16_t)tempIgnitionEndTooth[1] > (36 + toothAdder)) { tempIgnitionEndTooth[1] = (36 + toothAdder); }
+  if(tempIgnitionEndTooth[1] > (36 + toothAdder)) { tempIgnitionEndTooth[1] = (36 + toothAdder); }
  
   tempIgnitionEndTooth[2] = ( (ignition2EndAngle - configPage4.triggerAngle) / (int16_t)(10) ) - 1;
   if(tempIgnitionEndTooth[2] > (36 + toothAdder)) { tempIgnitionEndTooth[2] -= (36 + toothAdder); }
   if(tempIgnitionEndTooth[2] <= 0) { tempIgnitionEndTooth[2] += (36 + toothAdder); }
-  if((uint16_t)tempIgnitionEndTooth[2] > (36 + toothAdder)) { tempIgnitionEndTooth[2] = (36 + toothAdder); }
+  if(tempIgnitionEndTooth[2] > (36 + toothAdder)) { tempIgnitionEndTooth[2] = (36 + toothAdder); }
  
   tempIgnitionEndTooth[3] = ( (ignition3EndAngle - configPage4.triggerAngle) / (int16_t)(10) ) - 1;
   if(tempIgnitionEndTooth[3] > (36 + toothAdder)) { tempIgnitionEndTooth[3] -= (36 + toothAdder); }
   if(tempIgnitionEndTooth[3] <= 0) { tempIgnitionEndTooth[3] += (36 + toothAdder); }
-  if((uint16_t)tempIgnitionEndTooth[3] > (36 + toothAdder)) { tempIgnitionEndTooth[3] = (36 + toothAdder); }
+  if(tempIgnitionEndTooth[3] > (36 + toothAdder)) { tempIgnitionEndTooth[3] = (36 + toothAdder); }
 
   tempIgnitionEndTooth[4] = ( (ignition4EndAngle - configPage4.triggerAngle) / (int16_t)(10) ) - 1;
   if(tempIgnitionEndTooth[4] > (36 + toothAdder)) { tempIgnitionEndTooth[4] -= (36 + toothAdder); }
   if(tempIgnitionEndTooth[4] <= 0) { tempIgnitionEndTooth[4] += (36 + toothAdder); }
-  if((uint16_t)tempIgnitionEndTooth[4] > (36 + toothAdder)) { tempIgnitionEndTooth[4] = (36 + toothAdder); }
+  if(tempIgnitionEndTooth[4] > (36 + toothAdder)) { tempIgnitionEndTooth[4] = (36 + toothAdder); }
 
   // take into account the missing teeth on the Rover flywheels
   int tempCount=0;
