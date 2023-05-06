@@ -3398,7 +3398,8 @@ void initialiseTriggers(void)
       //36-2-2-2
       triggerSetup_ThirtySixMinus222();
       triggerHandler = triggerPri_ThirtySixMinus222;
-      triggerSecondaryHandler = triggerSec_ThirtySixMinus222;
+      triggerSecondaryHandler = triggerSec_missingTooth;
+      triggerTertiaryHandler = triggerThird_ThirtySixMinus222;
       BIT_SET(decoderState, BIT_DECODER_HAS_SECONDARY);
       getRPM = getRPM_ThirtySixMinus222;
       getCrankAngle = getCrankAngle_missingTooth; //This uses the same function as the missing tooth decoder, so no need to duplicate code
@@ -3411,6 +3412,7 @@ void initialiseTriggers(void)
 
       attachInterrupt(triggerInterrupt, triggerHandler, primaryTriggerEdge);
       attachInterrupt(triggerInterrupt2, triggerSecondaryHandler, secondaryTriggerEdge);
+      attachInterrupt(triggerInterrupt2, triggerTertiaryHandler, secondaryTriggerEdge);
       break;
 
     case DECODER_36_2_1:

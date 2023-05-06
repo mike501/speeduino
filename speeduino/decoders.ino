@@ -645,13 +645,26 @@ void recordVVT1Angle ()
   }
 }
 
+void recordVVT2Angle()
+{
+  if( (thirdToothCount == 1 && revolutionOne == 1) || configPage4.trigPatternSec != SEC_TRIGGER_TOYOTA_3 ) // if not Toyota 3 tooth pattern run this code otherwise make sure its the second tooth on the Toyota pattern.
+  {
+    int16_t curAngle;
+    curAngle = getCrankAngle();
+    while(curAngle > 360) { curAngle -= 360; }
+    curAngle -= configPage4.triggerAngle; //Value at TDC
+    if( configPage6.vvtMode == VVT_MODE_CLOSED_LOOP ) { curAngle -= configPage4.vvt2CL0DutyAng; }
+    //currentStatus.vvt2Angle = int8_t (curAngle); //vvt1Angle is only int8, but +/-127 degrees is enough for VVT control
+    currentStatus.vvt2Angle = ANGLE_FILTER( (curAngle << 1), configPage4.ANGLEFILTER_VVT, currentStatus.vvt2Angle);   
+  }
+}
+
+
 
 void triggerThird_missingTooth(void)
 {
 //Record the VVT2 Angle (the only purpose of the third trigger)
 //NB no filtering of this signal with current implementation unlike Cam (VVT1)
-
-  int16_t curAngle;
   curTime3 = micros();
   curGap3 = curTime3 - toothLastThirdToothTime;
 
@@ -670,15 +683,8 @@ void triggerThird_missingTooth(void)
     else
     {triggerThirdFilterTime = curGap3 >> 1; }//Next third filter is 50% the current gap
 
-    if( (thirdToothCount == 1 && revolutionOne == 1) || configPage4.trigPatternSec != SEC_TRIGGER_TOYOTA_3 ) // if not Toyota 3 tooth pattern run this code otherwise make sure its the second tooth on the Toyota pattern.
-    {
-      curAngle = getCrankAngle();
-      while(curAngle > 360) { curAngle -= 360; }
-      curAngle -= configPage4.triggerAngle; //Value at TDC
-      if( configPage6.vvtMode == VVT_MODE_CLOSED_LOOP ) { curAngle -= configPage4.vvt2CL0DutyAng; }
-      //currentStatus.vvt2Angle = int8_t (curAngle); //vvt1Angle is only int8, but +/-127 degrees is enough for VVT control
-      currentStatus.vvt2Angle = ANGLE_FILTER( (curAngle << 1), configPage4.ANGLEFILTER_VVT, currentStatus.vvt2Angle);    
-    }
+    recordVVT2Angle();
+    
     toothLastThirdToothTime = curTime3;
   } //Trigger filter
 }
@@ -3563,6 +3569,8 @@ void triggerPri_ThirtySixMinus222(void)
          toothOneMinusOneTime = toothOneTime;
          toothOneTime = curTime;
          currentStatus.startRevolutions++; //Counter
+         secondaryToothCount = 0;
+         thirdToothCount = 0;
 
        }
        else if(toothSystemCount == 1)
@@ -3604,9 +3612,32 @@ void triggerPri_ThirtySixMinus222(void)
    }
 }
 
-void triggerSec_ThirtySixMinus222(void)
+void triggerThird_ThirtySixMinus222(void)
 {
-  //NOT USED - This pattern uses the missing tooth version of this function
+  curTime3 = micros();
+  curGap3 = curTime3 - toothLastThirdToothTime;
+
+  //Safety check for initial startup
+  if( (toothLastThirdToothTime == 0) )
+  { 
+    curGap3 = 0; 
+    toothLastThirdToothTime = curTime3;
+  }
+
+  if ( curGap3 >= triggerThirdFilterTime )
+  {
+    // designed for Toyota VVTI (2JZ) engine - 3 triggers on the cam. 
+    // the 2 teeth for this are within 1 rotation (1 tooth first 360, 2 teeth second 360)    
+    thirdToothCount++;
+    if(secondaryToothCount == 2)
+    { 
+      revolutionOne = 1; // sequential revolution reset
+      recordVVT2Angle ();     
+    }        
+    //Next secondary filter is 25% the current gap, done here so we don't get a great big gap for the 1st tooth
+    triggerThirdFilterTime = curGap3 >> 2; 
+    toothLastThirdToothTime = curTime3;
+  } //Trigger filter
 }
 
 uint16_t getRPM_ThirtySixMinus222(void)
