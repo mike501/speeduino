@@ -2142,20 +2142,35 @@ void triggerSetEndTeeth_Audi135(void)
 // reusing variables to save storage space, these are used to do trigger filter to stop noise - can't do it normally due to the pattern needing to
 // detect an extra not missing tooth
 #define D17toothtriggerFilterTime     toothLastToothRisingTime
-#define isExtraTooth                  isMissingTooth
+
 
 void triggerSetup_HondaD17(void)
 {
-  triggerToothAngle = 360 / 12; //The number of degrees that passes from tooth to tooth
-  MAX_STALL_TIME = (3333UL * triggerToothAngle); //Minimum 50rpm. (3333uS is the time per degree at 50rpm)
-  BIT_CLEAR(decoderState, BIT_DECODER_2ND_DERIV);
+  
+  D17toothtriggerFilterTime = (unsigned long)(1000000 / (MAX_RPM / 60 * 135UL)); //Trigger filter time is the shortest possible time (in uS) that there can be between crank teeth (ie at max RPM). Any pulses that occur faster than this time will be discarded as noise
+  triggerSecFilterTime = (int)(1000000 / (MAX_RPM / 60 * 2)) / 2; //Same as above, but fixed at 2 teeth on the secondary input and divided by 2 (for cam speed)
+
   BIT_CLEAR(decoderState, BIT_DECODER_IS_SEQUENTIAL);
-  BIT_SET(decoderState, BIT_DECODER_HAS_SECONDARY);
+  BIT_CLEAR(decoderState, BIT_DECODER_2ND_DERIV);
   BIT_SET(decoderState, BIT_DECODER_TOOTH_ANG_CORRECT);
 
-  D17triggerFilterTime = (unsigned long)(1000000 / (MAX_RPM / 60 * 135UL)); //Trigger filter time is the shortest possible time (in uS) that there can be between crank teeth (ie at max RPM). Any pulses that occur faster than this time will be discarded as noise
-  D17triggerSecFilterTime = (int)(1000000 / (MAX_RPM / 60 * 2)) / 2; //Same as above, but fixed at 2 teeth on the secondary input and divided by 2 (for cam speed)
-  isExtraTooth = false;
+  // triggerTeeth is the total number of teeth on the trigger wheel excluding the tooth used to find sync. 
+  triggerToothAngle = 360 / configPage4.triggerTeeth; //The number of degrees that passes from tooth to tooth
+  triggerActualTeeth = configPage4.triggerTeeth; //The number of physical teeth on the wheel. Doing this here saves us a calculation each time in the interrupt. 
+  triggerFilterTime = (1000000 / (MAX_RPM / 60 * configPage4.triggerTeeth)); //Trigger filter time is the shortest possible time (in uS) that there can be between crank teeth (ie at max RPM). Any pulses that occur faster than this time will be discarded as noise
+  triggerSecFilterTime = (1000000 / (MAX_RPM / 60));
+  MAX_STALL_TIME = (3333UL * triggerToothAngle * (configPage4.triggerTeeth)); //Minimum 50rpm. (3333uS is the time per degree at 50rpm)
+  
+  toothLastMinusOneToothTime = 0;
+  toothCurrentCount = 0;
+  secondaryToothCount = 0; 
+  thirdToothCount = 0;
+  toothOneTime = 0;
+  toothOneMinusOneTime = 0;
+  
+
+  if( (configPage4.TrigSpeed == CRANK_SPEED) &&  ( (configPage4.sparkMode == IGN_MODE_SEQUENTIAL) || (configPage2.injLayout == INJ_SEQUENTIAL) ) ) { BIT_SET(decoderState, BIT_DECODER_HAS_SECONDARY); }
+  else { BIT_CLEAR(decoderState, BIT_DECODER_HAS_SECONDARY); }
 }
 
 
@@ -2163,86 +2178,75 @@ void triggerPri_HondaD17(void)
 {
   curTime = micros();
   curGap = curTime - toothLastToothTime;
-  if ( curGap < D17triggerFilterTime ) 
-  { return; } // Pulses less than minimum possible, means we've got noise
+  if ( curGap < D17toothtriggerFilterTime ) // Pulses less than minimum possible, means we've got noise
+  { return; } 
 
-  toothCurrentCount++; //Increment the tooth counter
   BIT_SET(decoderState, BIT_DECODER_VALID_TRIGGER); //Flag this pulse as being a valid trigger (ie that it passed filters)
-
   
   if( (toothLastToothTime > 0) && (toothLastMinusOneToothTime > 0) )
   {
-    bool isExtraTooth = false;
+    //Begin the extra tooth detection
+    //If the time between the current tooth and the last is smaller than 50% then we've got the extra tooth
+    targetGap = (toothLastToothTime - toothLastMinusOneToothTime) >> 1; 
+    
+    if( (toothLastToothTime == 0) || (toothLastMinusOneToothTime == 0) ) { curGap = 0; }
 
-    /*
-    Performance Optimisation:
-    Only need to try and detect the additional tooth if:
-    1. WE don't have sync yet
-    2. We have sync and are in the final 1/4 of the wheel (Extra tooth will/should never occur in the first 3/4)
-    3. RPM is under 2000. This is to ensure that we don't interfere with strange timing when cranking or idling. Optimisation not really required at these speeds anyway
-    */
-    if( (currentStatus.hasSync == false) || (currentStatus.RPM < 2000) || (toothCurrentCount >= 9 )
+    if ( (curGap < targetGap) )
     {
-      //Begin the extra tooth detection
-      //If the time between the current tooth and the last is smaller than 50% then we've got the extra tooth
-      targetGap = (toothLastToothTime - toothLastMinusOneToothTime) >> 1; 
-      
-      if( (toothLastToothTime == 0) || (toothLastMinusOneToothTime == 0) ) { curGap = 0; }
-
-      if ( (curGap < targetGap) || (toothCurrentCount > triggerActualTeeth) )
+      //Extra tooth detected
+      if( toothCurrentCount != triggerActualTeeth ) 
+      { 
+          //This occurs when we've found the extra tooth but haven't seen 12 other teeth. This indicates a signal issue so we flag lost sync so this will attempt to resync on the next revolution.
+          currentStatus.hasSync = false;
+          BIT_CLEAR(currentStatus.status3, BIT_STATUS3_HALFSYNC); //No sync at all, so also clear HalfSync bit.
+          currentStatus.syncLossCounter++;          
+          toothCurrentCount = 12;
+          triggerFilterTime = 0; //This is used to prevent a condition where serious intermittent signals (Eg someone furiously plugging the sensor wire in and out) can leave the filter in an unrecoverable state        
+      }        
+      else
       {
-        //Extra tooth detected
-        isExtraTooth = true;
-        if( (toothCurrentCount < triggerActualTeeth) && (currentStatus.hasSync == true) ) 
-        { 
-            //This occurs when we're at tooth #1, but haven't seen all the other teeth. This indicates a signal issue so we flag lost sync so this will attempt to resync on the next revolution.
-            currentStatus.hasSync = false;
-            BIT_CLEAR(currentStatus.status3, BIT_STATUS3_HALFSYNC); //No sync at all, so also clear HalfSync bit.
-            currentStatus.syncLossCounter++;
-        }
-        else
-        {
-          if((currentStatus.hasSync == true) || BIT_CHECK(currentStatus.status3, BIT_STATUS3_HALFSYNC))
-          {
-            currentStatus.startRevolutions++; //Counter
-            if ( configPage4.TrigSpeed == CAM_SPEED ) { currentStatus.startRevolutions++; } //Add an extra revolution count if we're running at cam speed
-          }
-          else { currentStatus.startRevolutions = 0; }
-          
-          toothCurrentCount = 1;
-          revolutionOne = !revolutionOne; //Flip sequential revolution tracker if poll level is not used
-          toothOneMinusOneTime = toothOneTime;
-          toothOneTime = curTime;
-
-          //if Sequential fuel or ignition is in use, further checks are needed before determining sync
-          if( (configPage4.sparkMode == IGN_MODE_SEQUENTIAL) || (configPage2.injLayout == INJ_SEQUENTIAL) )
-          {
-            //If either fuel or ignition is sequential, only declare sync if the cam tooth has been seen OR if the missing wheel is on the cam
-            if( secondaryToothCount >1 ) // if we've seen some cam teeth assume we've got sync, if we haven't we'll say so in the cam code
-            {
-              currentStatus.hasSync = true;
-              BIT_CLEAR(currentStatus.status3, BIT_STATUS3_HALFSYNC); //the engine is fully synced so clear the Half Sync bit                
-            }
-            else if(currentStatus.hasSync != true) { BIT_SET(currentStatus.status3, BIT_STATUS3_HALFSYNC); } //If there is primary trigger but no secondary we only have half sync.
-          }
-          else { currentStatus.hasSync = true;  BIT_CLEAR(currentStatus.status3, BIT_STATUS3_HALFSYNC); } //If nothing is using sequential, we have sync and also clear half sync bit
-
-          triggerFilterTime = 0; //This is used to prevent a condition where serious intermittent signals (Eg someone furiously plugging the sensor wire in and out) can leave the filter in an unrecoverable state
-          toothLastMinusOneToothTime = toothLastToothTime;
-          toothLastToothTime = curTime;
-          BIT_CLEAR(decoderState, BIT_DECODER_TOOTH_ANG_CORRECT); //The tooth angle is double at this point
-        }
+        // we have sync on the crank
+        BIT_SET(currentStatus.status3, BIT_STATUS3_HALFSYNC); //Set HalfSync bit.
       }
     }
-    
-    if(isExtraTooth == false)
+    else
     {
-      //Regular (non-missing) tooth
+      //Regular (not extra) tooth
+      toothCurrentCount++; //Increment the tooth counter
       setFilter(curGap);
       toothLastMinusOneToothTime = toothLastToothTime;
       toothLastToothTime = curTime;
       BIT_SET(decoderState, BIT_DECODER_TOOTH_ANG_CORRECT);
-    }
+
+      if(toothCurrentCount == triggerActualTeeth+1)
+      {
+        // seen enough teeth to say we've done a revolution of the crank
+        toothCurrentCount = 1;
+        if((currentStatus.hasSync == true) || BIT_CHECK(currentStatus.status3, BIT_STATUS3_HALFSYNC))
+        {
+          currentStatus.startRevolutions++; //Counter
+        }
+        else { currentStatus.startRevolutions = 0; }
+        
+
+        revolutionOne = !revolutionOne; //Flip sequential revolution tracker if poll level is not used
+        toothOneMinusOneTime = toothOneTime;
+        toothOneTime = curTime;
+
+        //if Sequential fuel or ignition is in use, further checks are needed before determining sync
+        if( (configPage4.sparkMode == IGN_MODE_SEQUENTIAL) || (configPage2.injLayout == INJ_SEQUENTIAL) )
+        {
+          //If either fuel or ignition is sequential, only declare sync if the cam tooth has been seen OR if the missing wheel is on the cam
+          if( secondaryToothCount >1 ) // if we've seen some cam teeth assume we've got sync, if we haven't we'll say so in the cam code
+          {
+            currentStatus.hasSync = true;
+            BIT_CLEAR(currentStatus.status3, BIT_STATUS3_HALFSYNC); //the engine is fully synced so clear the Half Sync bit                
+          }
+          else if(currentStatus.hasSync != true) { BIT_SET(currentStatus.status3, BIT_STATUS3_HALFSYNC); } //If there is primary trigger but no secondary we only have half sync.
+        }
+        else { currentStatus.hasSync = true;  BIT_CLEAR(currentStatus.status3, BIT_STATUS3_HALFSYNC); } //If nothing is using sequential, we have sync and also clear half sync bit
+      }
+    }        
   }
   else
   {
@@ -2267,13 +2271,13 @@ void triggerPri_HondaD17(void)
 }
 
 
-//The 4+1 signal on the cam 
+//The 4+1 signal on the exhaust cam 
 void triggerSec_HondaD17(void) 
 { 
   curTime2 = micros();
   curGap2 = curTime2 - toothLastSecToothTime;
 
-  if ( curGap < triggerSecFilterTime ) 
+  if ( curGap2 < triggerSecFilterTime ) 
   { return; } // Pulses less than minimum possible, means we've got noise
 
   //Safety check for initial startup
@@ -2285,12 +2289,19 @@ void triggerSec_HondaD17(void)
 
   targetGap2 = (toothLastSecToothTime - toothLastMinusOneSecToothTime) >> 1; //If the time between the current tooth and the last is less than 50% we've got the extra tooth
   toothLastMinusOneSecToothTime = toothLastSecToothTime;
-  if ( (curGap2 < targetGap2) || (secondaryToothCount > 4) )
+  if( secondaryToothCount > 4)
+  {
+    // only 4 teeth we count on the cam (we ignore the small tooth we use for sync), if we've seen more than 4 we've lost sync
+    BIT_SET(currentStatus.status3, BIT_STATUS3_HALFSYNC);
+  }
+
+  if (curGap2 < targetGap2) 
   {
     // found the extra tooth
-    secondaryToothCount = 1;
+    secondaryToothCount = 0;
     revolutionOne = 1; //Sequential revolution reset
     triggerSecFilterTime = 0; //This is used to prevent a condition where serious intermittent signals (Eg someone furiously plugging the sensor wire in and out) can leave the filter in an unrecoverable state
+    BIT_CLEAR(currentStatus.status3, BIT_STATUS3_HALFSYNC);
 
     //Record the VVT Angle
     if( configPage6.vvtEnabled > 0  )
@@ -2312,7 +2323,62 @@ void triggerSec_HondaD17(void)
   toothLastSecToothTime = curTime2;
 }
 
+//The 4 tooth signal on the Inlet cam 
+void triggerThird_HondaD17(void) 
+{ 
+  curTime3 = micros();
+  curGap3 = curTime3 - toothLastThirdToothTime;
 
+  //Safety check for initial startup
+  if( (toothLastThirdToothTime == 0) )
+  { 
+    curGap3 = 0; 
+    toothLastThirdToothTime = curTime3;
+  }
+
+  if ( curGap3 < triggerThirdFilterTime ) 
+  { return; } // Pulses less than minimum possible, means we've got noise
+
+  if( secondaryToothCount > 5)
+  {
+    // only 4 teeth we count on the cam (we ignore the small tooth we use for sync), if we've seen more than 5 we've lost sync
+    BIT_SET(currentStatus.status3, BIT_STATUS3_HALFSYNC);
+  }
+
+  //if (curGap2 < targetGap2) 
+  if( thirdToothCount == 5 && secondaryToothCount == 0) // check relationship between secondary and third are correct
+  {
+    // found the first tooth on the next cycle    
+    thirdToothCount = 1;
+    revolutionOne = 1; //Sequential revolution reset
+    triggerThirdFilterTime = 0; //This is used to prevent a condition where serious intermittent signals (Eg someone furiously plugging the sensor wire in and out) can leave the filter in an unrecoverable state
+    BIT_CLEAR(currentStatus.status3, BIT_STATUS3_HALFSYNC);
+  }
+  else if (( thirdToothCount == 4 && secondaryToothCount == 0) ) // check relationship between secondary and third are correct
+  {
+    // found the tooth we trigger VVT from - so Record the VVT Angle
+    if( configPage6.vvtEnabled > 0  )
+    {
+      int16_t curAngle;
+      curAngle = getCrankAngle();
+      while(curAngle > 360) { curAngle -= 360; }
+      curAngle -= configPage4.triggerAngle; //Value at TDC
+      if( configPage6.vvtMode == VVT_MODE_CLOSED_LOOP ) { curAngle -= configPage10.vvtCL0DutyAng; }
+
+      currentStatus.vvt1Angle = ANGLE_FILTER( (curAngle << 1), configPage4.ANGLEFILTER_VVT, currentStatus.vvt1Angle);
+    }
+  }
+  else
+  {    
+    thirdToothCount++;
+  }
+  triggerThirdFilterTime = curGap3 >> 4; //Set filter at ~6% of the current speed.
+  toothLastThirdToothTime = curTime3;
+}
+
+
+
+/*
 uint16_t getRPM_HondaD17(void)
 {
    return stdGetRPM(360);
@@ -2355,6 +2421,7 @@ void triggerSetEndTeeth_HondaD17(void)
 {
   lastToothCalcAdvance = currentStatus.advance;
 }
+*/
 
 /** @} */
 
