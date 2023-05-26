@@ -2311,7 +2311,7 @@ void triggerSec_HondaD17(void)
   {
     triggerSecFilterTime = curGap2 >> 4; //Set filter at ~6% of the current speed. Filter can only be recalculated for the regular teeth, not the additional one.
     secondaryToothCount++;
-    Serial3.print("      Sec -TC:"); Serials3.println(secondaryToothCount);
+    Serial3.print("      Sec -TC:"); Serial3.println(secondaryToothCount);
   }
 
   if(secondaryToothCount == 1 && revolutionOne == 1 && configPage6.vvtEnabled > 0)
