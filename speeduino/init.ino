@@ -108,6 +108,7 @@ void initialiseAll(void)
     
     initBoard(); //This calls the current individual boards init function. See the board_xxx.ino files for these.
     initialiseTimers();
+    
   #ifdef SD_LOGGING
     initRTC();
     initSD();
@@ -281,7 +282,7 @@ void initialiseAll(void)
     o2CalibrationTable.xSize = 32;
     o2CalibrationTable.values = o2Calibration_values;
     o2CalibrationTable.axisX = o2Calibration_bins;
-
+    
     //Setup the calibration tables
     loadCalibration();
 
@@ -430,6 +431,7 @@ void initialiseAll(void)
 
     //The secondary input can be used for VSS if nothing else requires it. Allows for the standard VR conditioner to be used for VSS. This MUST be run after the initialiseTriggers() function
     if( VSS_USES_RPM2() ) { attachInterrupt(digitalPinToInterrupt(pinVSS), vssPulse, RISING); } //Secondary trigger input can safely be used for VSS
+    if( FLEX_USES_RPM2() ) { attachInterrupt(digitalPinToInterrupt(pinFlex), flexPulse, CHANGE); } //Secondary trigger input can safely be used for Flex sensor
 
     //End crank trigger interrupt attachment
     if(configPage2.strokes == FOUR_STROKE)
@@ -1479,6 +1481,7 @@ void setPinMapping(byte boardID)
         pinCoil3 = 30;
         pinO2 = A22;
       #elif defined(CORE_TEENSY41)
+        //These are only to prevent lockups or weird behaviour on T4.1 when this board is used as the default
         pinBaro = A4; 
         pinMAP = A5;
         pinTPS = A3; //TPS input pin
@@ -1493,6 +1496,7 @@ void setPinMapping(byte boardID)
 
         pinTrigger = 20; //The CAS pin
         pinTrigger2 = 21; //The Cam Sensor pin
+        pinTrigger3 = 23;
 
         pinStepperDir = 34;
         pinStepperStep = 35;
@@ -1504,6 +1508,10 @@ void setPinMapping(byte boardID)
 
         pinTachOut = 28;
         pinFan = 27;
+        pinFuelPump = 33;
+        pinWMIEmpty = 34;
+        pinWMIIndicator = 35;
+        pinWMIEnabled = 36;
       #elif defined(STM32F407xx)
      //Pin definitions for experimental board Tjeerd 
         //Black F407VE wiki.stm32duino.com/index.php?title=STM32F407
@@ -1945,7 +1953,6 @@ void setPinMapping(byte boardID)
       pinTrigger3 = 20; //The Cam sensor 2 pin
       pinTPS = A2;//TPS input pin
       pinMAP = A3; //MAP sensor pin
-      pinEMAP = A15; //EMAP sensor pin
       pinIAT = A0; //IAT sensor pin
       pinCLT = A1; //CLT sensor pin
       pinO2 = A8; //O2 Sensor pin
@@ -1967,11 +1974,6 @@ void setPinMapping(byte boardID)
       pinFlex = 2; // Flex sensor
       pinResetControl = 43; //Reset control output
       pinVSS = 3; //VSS input pin
-      pinWMIEmpty = 31; //(placeholder)
-      pinWMIIndicator = 33; //(placeholder)
-      pinWMIEnabled = 35; //(placeholder)
-      pinIdleUp = 37; //(placeholder)
-      pinCTPS = A6; //(placeholder)
      #elif defined(STM32F407xx)
       pinInjector1 = PB15; //Output pin injector 1
       pinInjector2 = PB14; //Output pin injector 2
@@ -1993,7 +1995,6 @@ void setPinMapping(byte boardID)
       pinTrigger2 = PD4; //The Cam Sensor pin
       pinTPS = PA2;//TPS input pin
       pinMAP = PA3; //MAP sensor pin
-      pinEMAP = PC5; //EMAP sensor pin
       pinIAT = PA0; //IAT sensor pin
       pinCLT = PA1; //CLS sensor pin
       pinO2 = PB0; //O2 Sensor pin
@@ -2015,11 +2016,6 @@ void setPinMapping(byte boardID)
       pinFlex = PD7; // Flex sensor
       pinResetControl = PB7; //Reset control output
       pinVSS = PB6; //VSS input pin
-      pinWMIEmpty = PD15; //(placeholder)
-      pinWMIIndicator = PD13; //(placeholder)
-      pinWMIEnabled = PE15; //(placeholder)
-      pinIdleUp = PE14; //(placeholder)
-      pinCTPS = PA6; //(placeholder)
      #endif
       break;
 
@@ -2308,6 +2304,11 @@ void setPinMapping(byte boardID)
       pinFan = 25; //Pin for the fan output
       pinResetControl = 46; //Reset control output PLACEHOLDER value for now
 
+      //CS pin number is now set in a compile flag. 
+      // #ifdef USE_SPI_EEPROM
+      //   pinSPIFlash_CS = 6;
+      // #endif
+
       #if defined(CORE_TEENSY35)
         pinTPS = A22; //TPS input pin
         pinIAT = A19; //IAT sensor pin
@@ -2322,7 +2323,33 @@ void setPinMapping(byte boardID)
         pinCLT = A15; //CLS sensor pin
         pinO2 = A16; //O2 Sensor pin
         pinBat = A3; //Battery reference voltage pin. Needs Alpha4+
-        pinLaunch = 34; //Can be overwritten below
+
+        //New pins for the actual T4.1 version of the Dropbear
+        pinBaro = A4; 
+        pinMAP = A5;
+        pinTPS = A3; //TPS input pin
+        pinIAT = A0; //IAT sensor pin
+        pinCLT = A1; //CLS sensor pin
+        pinO2 = A2; //O2 Sensor pin
+        pinBat = A15; //Battery reference voltage pin. Needs Alpha4+
+        pinLaunch = 36;
+        pinFlex = 37; // Flex sensor
+        pinSpareTemp1 = A16; 
+        pinSpareTemp2 = A17;
+
+        pinTrigger = 20; //The CAS pin
+        pinTrigger2 = 21; //The Cam Sensor pin
+
+        pinFuelPump = 5; //Fuel pump output
+        pinTachOut = 8; //Tacho output pin
+
+        pinResetControl = 49; //PLaceholder only. Cannot use 42-47 as these are the SD card
+
+        //CS pin number is now set in a compile flag. 
+        // #ifdef USE_SPI_EEPROM
+        //   pinSPIFlash_CS = 33;
+        // #endif
+
       #endif
 
         pinMC33810_1_CS = 10;
@@ -2347,56 +2374,7 @@ void setPinMapping(byte boardID)
       MC33810_BIT_IGN7 = 6;
       MC33810_BIT_IGN8 = 7;
 
-      //CS pin number is now set in a compile flag. 
-      // #ifdef USE_SPI_EEPROM
-      //   pinSPIFlash_CS = 6;
-      // #endif
 
-      #endif
-      break;
-
-    case 56:
-      #if defined(CORE_TEENSY)
-      //Pin mappings for the Bear Cub (Teensy 4.1)
-      pinInjector1 = 6;
-      pinInjector2 = 7;
-      pinInjector3 = 9;
-      pinInjector4 = 8;
-      pinInjector5 = 0; //Not used
-      pinCoil1 = 2;
-      pinCoil2 = 3;
-      pinCoil3 = 4;
-      pinCoil4 = 5;
-
-      pinTrigger = 20; //The CAS pin
-      pinTrigger2 = 21; //The Cam Sensor pin
-      pinFlex = 37; // Flex sensor
-      pinMAP = A5; //MAP sensor pin
-      pinBaro = A4; //Baro sensor pin
-      pinBat = A15; //Battery reference voltage pin
-      pinTPS = A3; //TPS input pin
-      pinIAT = A0; //IAT sensor pin
-      pinCLT = A1; //CLS sensor pin
-      pinO2 = A2; //O2 Sensor pin
-      pinLaunch = 36;
-
-      pinSpareTemp1 = A16; //spare Analog input 1
-      pinSpareTemp2 = A17; //spare Analog input 2
-      pinTachOut = 38; //Tacho output pin
-      pinIdle1 = 27; //Single wire idle control
-      pinIdle2 = 26; //2 wire idle control. Shared with Spare 1 output
-      pinFuelPump = 10; //Fuel pump output
-      pinVVT_1 = 28; //Default VVT output
-      pinStepperDir = 32; //Direction pin  for DRV8825 driver
-      pinStepperStep = 31; //Step pin for DRV8825 driver
-      pinStepperEnable = 30; //Enable pin for DRV8825 driver
-      pinBoost = 24; //Boost control
-      pinSpareLOut1 = 29; //low current output spare1
-      pinSpareLOut2 = 26; //low current output spare2
-      pinSpareLOut3 = 28; //low current output spare3
-      pinSpareLOut4 = 29; //low current output spare4
-      pinFan = 25; //Pin for the fan output
-      pinResetControl = 46; //Reset control output PLACEHOLDER value for now
 
       #endif
       break;
@@ -3150,13 +3128,13 @@ void initialiseTriggers(void)
       attachInterrupt(triggerInterrupt, triggerHandler, primaryTriggerEdge);
       break;
 
-    case 2:
+    case DECODER_DUAL_WHEEL:
       triggerSetup_DualWheel();
-      triggerHandler = triggerPri_DualWheel;
-      triggerSecondaryHandler = triggerSec_DualWheel;
-      getRPM = getRPM_DualWheel;
+      triggerHandler = triggerPri_DualWheel_v2;
+      triggerSecondaryHandler = triggerSec_DualWheel_v2;
       getCrankAngle = getCrankAngle_DualWheel;
-      triggerSetEndTeeth = triggerSetEndTeeth_DualWheel;
+      triggerSetEndTeeth = triggerSetEndTeeth_DualWheel_v2;
+      getRPM = getRPM_DualWheel;
 
       if(configPage4.TrigEdge == 0) { primaryTriggerEdge = RISING; } // Attach the crank trigger wheel interrupt (Hall sensor drags to ground when triggering)
       else { primaryTriggerEdge = FALLING; }
@@ -3559,11 +3537,13 @@ void initialiseTriggers(void)
 void changeHalfToFullSync(void)
 {
   //Need to do another check for injLayout as this function can be called from ignition
-  if( (configPage2.injLayout == INJ_SEQUENTIAL) && (CRANK_ANGLE_MAX_INJ != 720) )
+  noInterrupts();
+  if( (configPage2.injLayout == INJ_SEQUENTIAL) && (CRANK_ANGLE_MAX_INJ != 720) && fuelSchedule1.Status!=RUNNING && fuelSchedule2.Status!=RUNNING && fuelSchedule3.Status!=RUNNING && fuelSchedule4.Status!=RUNNING &&
+    fuelSchedule5.Status!=RUNNING && fuelSchedule6.Status!=RUNNING && fuelSchedule7.Status!=RUNNING && fuelSchedule8.Status!=RUNNING)
   {
     CRANK_ANGLE_MAX_INJ = 720;
     req_fuel_uS *= 2;
-    
+        
     inj1StartFunction = openInjector1;
     inj1EndFunction = closeInjector1;
     inj2StartFunction = openInjector2;
@@ -3606,6 +3586,7 @@ void changeHalfToFullSync(void)
 
     }
   }
+  interrupts();
 
   //Need to do another check for sparkMode as this function can be called from injection
   if( (configPage4.sparkMode == IGN_MODE_SEQUENTIAL) && (CRANK_ANGLE_MAX_IGN != 720) )
