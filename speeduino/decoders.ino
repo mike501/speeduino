@@ -2150,7 +2150,7 @@ void triggerSetup_HondaD17(void)
   D17toothtriggerFilterTime = (unsigned long)(1000000 / (MAX_RPM / 60 * 135UL)); //Trigger filter time is the shortest possible time (in uS) that there can be between crank teeth (ie at max RPM). Any pulses that occur faster than this time will be discarded as noise
   triggerSecFilterTime = (int)(1000000 / (MAX_RPM / 60 * 2)) / 2; //Same as above, but fixed at 2 teeth on the secondary input and divided by 2 (for cam speed)
 
-  BIT_CLEAR(decoderState, BIT_DECODER_IS_SEQUENTIAL);
+  BIT_SET(decoderState, BIT_DECODER_IS_SEQUENTIAL);
   BIT_CLEAR(decoderState, BIT_DECODER_2ND_DERIV);
   BIT_SET(decoderState, BIT_DECODER_TOOTH_ANG_CORRECT);
 
@@ -2289,6 +2289,7 @@ void triggerSec_HondaD17(void)
   { return; } // Pulses less than minimum possible, means we've got noise
 
   targetGap2 = (toothLastSecToothTime - toothLastMinusOneSecToothTime) >> 1; //If the time between the current tooth and the last is less than 50% we've got the extra tooth
+Serial3.print("tlstt:");Serial3.print(toothLastSecToothTime);Serial3.print(" -tlmostt:");Serial3.println(toothLastMinusOneSecToothTime);
   toothLastMinusOneSecToothTime = toothLastSecToothTime;
   if( secondaryToothCount > 4)
   {
@@ -2296,6 +2297,8 @@ void triggerSec_HondaD17(void)
     BIT_SET(currentStatus.status3, BIT_STATUS3_HALFSYNC);
     Serial3.println("      STC > 4 - lost sync");
   }
+
+  Serial3.print("CG2:");Serial3.print(curGap2);Serial3.print(" <TG2:");Serial3.println(targetGap2);
 
   if (curGap2 < targetGap2) 
   {
@@ -2328,7 +2331,7 @@ void triggerSec_HondaD17(void)
   toothLastSecToothTime = curTime2;
 }
 
-//The 4 tooth signal on the Inlet cam 
+//The 4 tooth signal on the inlet cam 
 void triggerThird_HondaD17(void) 
 { 
   curTime3 = micros();
@@ -2352,6 +2355,7 @@ void triggerThird_HondaD17(void)
     // only 4 teeth we count on the cam (we ignore the small tooth we use for sync), if we've seen more than 5 we've lost sync
     BIT_SET(currentStatus.status3, BIT_STATUS3_HALFSYNC);
     Serial3.println("      TTC > 4 - lost sync");      
+
   }
   else if( thirdToothCount == 1 && revolutionOne == 1 && configPage6.vvtEnabled > 0)
   {
