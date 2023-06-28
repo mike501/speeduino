@@ -796,6 +796,9 @@ void triggerSetup_DualWheel(void)
   BIT_SET(decoderState, BIT_DECODER_TOOTH_ANG_CORRECT); //This is always true for this pattern
   BIT_SET(decoderState, BIT_DECODER_HAS_SECONDARY);
   MAX_STALL_TIME = (3333UL * triggerToothAngle); //Minimum 50rpm. (3333uS is the time per degree at 50rpm)
+
+  toothLastSecToothTime = 0;
+  toothLastMinusOneSecToothTime = 0;
 }
 
 /** Dual Wheel Primary.
@@ -808,6 +811,9 @@ void triggerPri_DualWheel(void)
     if ( curGap >= triggerFilterTime )
     {
       toothCurrentCount++; //Increment the tooth counter
+
+      Serial3.print("TC> "); Serial3.println(toothCurrentCount);
+
       BIT_SET(decoderState, BIT_DECODER_VALID_TRIGGER); //Flag this pulse as being a valid trigger (ie that it passed filters)
 
       toothLastMinusOneToothTime = toothLastToothTime;
@@ -848,27 +854,74 @@ void triggerSec_DualWheel(void)
 {
   curTime2 = micros();
   curGap2 = curTime2 - toothLastSecToothTime;
+  toothLastSecToothTime = curTime2;
   if ( curGap2 >= triggerSecFilterTime )
   {
-    toothLastSecToothTime = curTime2;
-    triggerSecFilterTime = curGap2 >> 2; //Set filter at 25% of the current speed
-
-    if( (currentStatus.hasSync == false) || (currentStatus.startRevolutions <= configPage4.StgCycles) )
+    switch(configPage4.trigPatternSec)
     {
-      toothLastToothTime = micros();
-      toothLastMinusOneToothTime = micros() - (6000000 / configPage4.triggerTeeth); //Fixes RPM at 10rpm until a full revolution has taken place
-      toothCurrentCount = configPage4.triggerTeeth;
-      triggerFilterTime = 0; //Need to turn the filter off here otherwise the first primary tooth after achieving sync is ignored
+      case SEC_TRIGGER_6_2:
+        //Safety check for initial startup
+        if( (toothLastSecToothTime == 0) )
+        { 
+          curGap2 = 0;           
+        }
+        
+        targetGap2 = (3 * (toothLastSecToothTime - toothLastMinusOneSecToothTime)) >> 1; //If the time between the current tooth and the last is greater than 1.5x the time between the last tooth and the tooth before that, we make the assertion that we must be at the first tooth after the gap
+        toothLastMinusOneSecToothTime = toothLastSecToothTime;
 
-      currentStatus.hasSync = true;
-    }
-    else 
-    {
-      if ( (toothCurrentCount != configPage4.triggerTeeth) && (currentStatus.startRevolutions > 2)) { currentStatus.syncLossCounter++; } //Indicates likely sync loss.
-      if (configPage4.useResync == 1) { toothCurrentCount = configPage4.triggerTeeth; }
-    }
+        if ( (curGap2 >= targetGap2) || (secondaryToothCount >= 4) )
+        {
+          if( (currentStatus.hasSync == false) || (currentStatus.startRevolutions <= configPage4.StgCycles) )
+          {
+            toothLastToothTime = micros();
+            toothLastMinusOneToothTime = micros() - (6000000 / configPage4.triggerTeeth); //Fixes RPM at 10rpm until a full revolution has taken place
+            toothCurrentCount = configPage4.triggerTeeth;
+            triggerFilterTime = 0; //Need to turn the filter off here otherwise the first primary tooth after achieving sync is ignored
+            secondaryToothCount++;
+            currentStatus.hasSync = true;
+          }
+          else if ( (secondaryToothCount != 4) && (currentStatus.startRevolutions > 2)) 
+          {             
+            currentStatus.syncLossCounter++; //Indicates likely sync loss.
+            currentStatus.hasSync = false;
+            secondaryToothCount = 1;
+          } 
+          else 
+          {
+            if (configPage4.useResync == 1) { toothCurrentCount = configPage4.triggerTeeth; }
+            secondaryToothCount = 1;
+            revolutionOne = 1; //Sequential revolution reset            
+            currentStatus.hasSync = true;
+          }
+        }
+        else
+        {
+          triggerSecFilterTime = curGap2 >> 2; //Set filter at 25% of the current speed. Filter can only be recalculated for the regular teeth, not the missing one.
+          secondaryToothCount++;
+        }
+        break;
 
-    revolutionOne = 1; //Sequential revolution reset
+      case SEC_TRIGGER_SINGLE:
+      default:
+        triggerSecFilterTime = curGap2 >> 2; //Set filter at 25% of the current speed
+
+        if( (currentStatus.hasSync == false) || (currentStatus.startRevolutions <= configPage4.StgCycles) )
+        {
+          toothLastToothTime = micros();
+          toothLastMinusOneToothTime = micros() - (6000000 / configPage4.triggerTeeth); //Fixes RPM at 10rpm until a full revolution has taken place
+          toothCurrentCount = configPage4.triggerTeeth;
+          triggerFilterTime = 0; //Need to turn the filter off here otherwise the first primary tooth after achieving sync is ignored
+
+          currentStatus.hasSync = true;
+        }
+        else 
+        {
+          if ( (toothCurrentCount != configPage4.triggerTeeth) && (currentStatus.startRevolutions > 2)) { currentStatus.syncLossCounter++; } //Indicates likely sync loss.
+          if (configPage4.useResync == 1) { toothCurrentCount = configPage4.triggerTeeth; }
+        }
+
+        revolutionOne = 1; //Sequential revolution reset
+    }
   }
   else 
   {
