@@ -859,6 +859,7 @@ void triggerSec_DualWheel(void)
   {
     switch(configPage4.trigPatternSec)
     {
+      case SEC_TRIGGER_4_1:      
       case SEC_TRIGGER_6_2:
         //Safety check for initial startup
         if( (toothLastSecToothTime == 0) )
@@ -869,7 +870,7 @@ void triggerSec_DualWheel(void)
         targetGap2 = (3 * (toothLastSecToothTime - toothLastMinusOneSecToothTime)) >> 1; //If the time between the current tooth and the last is greater than 1.5x the time between the last tooth and the tooth before that, we make the assertion that we must be at the first tooth after the gap
         toothLastMinusOneSecToothTime = toothLastSecToothTime;
 
-        if ( (curGap2 >= targetGap2) || (secondaryToothCount >= 4) )
+        if ( (curGap2 >= targetGap2) || (configPage4.trigPatternSec == SEC_TRIGGER_4_1 && secondaryToothCount >= 3) || (configPage4.trigPatternSec == SEC_TRIGGER_6_2 && secondaryToothCount >= 4))
         {
           if( (currentStatus.hasSync == false) || (currentStatus.startRevolutions <= configPage4.StgCycles) )
           {
