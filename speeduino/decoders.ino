@@ -881,7 +881,9 @@ void triggerSec_DualWheel(void)
             secondaryToothCount++;
             currentStatus.hasSync = true;
           }
-          else if ( (secondaryToothCount != 4) && (currentStatus.startRevolutions > 2)) 
+          else if ( ( (configPage4.trigPatternSec == SEC_TRIGGER_4_1 && secondaryToothCount != 3) || 
+                      (configPage4.trigPatternSec == SEC_TRIGGER_6_2 && secondaryToothCount != 4)) && 
+                      (currentStatus.startRevolutions > 2) ) 
           {             
             currentStatus.syncLossCounter++; //Indicates likely sync loss.
             currentStatus.hasSync = false;
