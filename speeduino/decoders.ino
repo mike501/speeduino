@@ -2201,7 +2201,7 @@ void triggerPri_HondaD17(void)
           BIT_CLEAR(currentStatus.status3, BIT_STATUS3_HALFSYNC); //No sync at all, so also clear HalfSync bit.
           currentStatus.syncLossCounter++;          
           toothCurrentCount = 12;
-          triggerFilterTime = 0; //This is used to prevent a condition where serious intermittent signals (Eg someone furiously plugging the sensor wire in and out) can leave the filter in an unrecoverable state        
+          triggerFilterTime = 0; //This is used to prevent a condition where serious intermittent signals (Eg someone furiously plugging the sensor wire in and out) can leave the filter in an unrecoverable state                  
       }        
       else
       {
@@ -2222,7 +2222,7 @@ void triggerPri_HondaD17(void)
       toothLastToothTime = curTime;
       BIT_SET(decoderState, BIT_DECODER_TOOTH_ANG_CORRECT);
 
-      if(toothCurrentCount == triggerActualTeeth+1)
+      if(toothCurrentCount == 1+triggerActualTeeth)
       {
         // seen enough teeth to say we've done a revolution of the crank
         toothCurrentCount = 1;
@@ -2232,7 +2232,7 @@ void triggerPri_HondaD17(void)
         }
         else { currentStatus.startRevolutions = 0; }
         
-        revolutionOne = !revolutionOne; //Flip sequential revolution tracker if poll level is not used
+        revolutionOne = !revolutionOne; //Flip sequential revolution tracker 
         toothOneMinusOneTime = toothOneTime;
         toothOneTime = curTime;
 
@@ -2245,11 +2245,23 @@ void triggerPri_HondaD17(void)
             currentStatus.hasSync = true;
             BIT_CLEAR(currentStatus.status3, BIT_STATUS3_HALFSYNC); //the engine is fully synced so clear the Half Sync bit                
           }
-          else if(currentStatus.hasSync != true) { BIT_SET(currentStatus.status3, BIT_STATUS3_HALFSYNC); } //If there is primary trigger but no secondary we only have half sync.
         }
         else { currentStatus.hasSync = true;  BIT_CLEAR(currentStatus.status3, BIT_STATUS3_HALFSYNC); } //If nothing is using sequential, we have sync and also clear half sync bit
       }
-    }        
+    }  
+
+    //NEW IGNITION MODE
+    if( (configPage2.perToothIgn == true) && (!BIT_CHECK(currentStatus.engine, BIT_ENGINE_CRANK)) ) 
+    {
+      int16_t crankAngle = ( (toothCurrentCount-1) * triggerToothAngle ) + configPage4.triggerAngle;
+      if( (configPage4.sparkMode == IGN_MODE_SEQUENTIAL) && (revolutionOne == true) && (configPage4.TrigSpeed == CRANK_SPEED) )
+      {
+        crankAngle += 360;
+        crankAngle = ignitionLimits(crankAngle);
+        checkPerToothTiming(crankAngle, (configPage4.triggerTeeth + toothCurrentCount)); 
+      }
+      else{ crankAngle = ignitionLimits(crankAngle); checkPerToothTiming(crankAngle, toothCurrentCount); }
+    } 
   }
   else
   {
@@ -2257,20 +2269,6 @@ void triggerPri_HondaD17(void)
     toothLastMinusOneToothTime = toothLastToothTime;
     toothLastToothTime = curTime;
   }
-  
-
-  //NEW IGNITION MODE
-  if( (configPage2.perToothIgn == true) && (!BIT_CHECK(currentStatus.engine, BIT_ENGINE_CRANK)) ) 
-  {
-    int16_t crankAngle = ( (toothCurrentCount-1) * triggerToothAngle ) + configPage4.triggerAngle;
-    if( (configPage4.sparkMode == IGN_MODE_SEQUENTIAL) && (revolutionOne == true) && (configPage4.TrigSpeed == CRANK_SPEED) )
-    {
-      crankAngle += 360;
-      crankAngle = ignitionLimits(crankAngle);
-      checkPerToothTiming(crankAngle, (configPage4.triggerTeeth + toothCurrentCount)); 
-    }
-    else{ crankAngle = ignitionLimits(crankAngle); checkPerToothTiming(crankAngle, toothCurrentCount); }
-  } 
 }
 
 
@@ -2280,6 +2278,8 @@ void triggerSec_HondaD17(void)
   curTime2 = micros();
   curGap2 = curTime2 - toothLastSecToothTime;
 
+Serial3.print("2ndCam ");
+
   //Safety check for initial startup
   if( (toothLastSecToothTime == 0) )
   { 
@@ -2288,7 +2288,9 @@ void triggerSec_HondaD17(void)
   }
 
   if ( curGap2 < triggerSecFilterTime ) 
-  { return; } // Pulses less than minimum possible, means we've got noise
+  { 
+    Serial3.println(" &&&&& CAM2 NOISE &&&&& ");
+    return; } // Pulses less than minimum possible, means we've got noise
 
   targetGap2 = (toothLastSecToothTime - toothLastMinusOneSecToothTime) >> 1; //If the time between the current tooth and the last is less than 50% we've got the extra tooth
   toothLastMinusOneSecToothTime = toothLastSecToothTime;
@@ -2304,6 +2306,7 @@ void triggerSec_HondaD17(void)
   if (curGap2 < targetGap2) 
   {
     // found the extra tooth
+    Serial3.println ("-----------found extra cam tooth - Reset--------");
     secondaryToothCount = 0;
     thirdToothCount = 0;
     revolutionOne = 1; //Sequential revolution reset
@@ -2314,11 +2317,15 @@ void triggerSec_HondaD17(void)
   {
     triggerSecFilterTime = curGap2 >> 4; //Set filter at ~6% of the current speed. Filter can only be recalculated for the regular teeth, not the additional one.
     secondaryToothCount++;
+  
+//  Serial3.print("TC:"); Serial3.print(secondaryToothCount); Serial3.print(" Rev:");Serial3.print(revolutionOne);
   }
 
-  if(secondaryToothCount == 1 && revolutionOne == 1 && configPage6.vvtEnabled > 0)
-  {
 
+  if(secondaryToothCount == 4 && revolutionOne == 1 && configPage6.vvtEnabled > 0)
+  {
+    Serial3.print("  ** VVTEnabled **  Angle - ") ;   
+    
     //Record the VVT Angle
     int16_t curAngle;
     curAngle = getCrankAngle();
@@ -2326,6 +2333,8 @@ void triggerSec_HondaD17(void)
     curAngle -= configPage4.triggerAngle; //Value at TDC
     if( configPage6.vvtMode == VVT_MODE_CLOSED_LOOP ) { curAngle -= configPage10.vvtCL0DutyAng; }
     currentStatus.vvt1Angle = ANGLE_FILTER( (curAngle << 1), configPage4.ANGLEFILTER_VVT, currentStatus.vvt1Angle);
+
+    Serial3.println(currentStatus.vvt1Angle);
   }
   toothLastSecToothTime = curTime2;
 }
@@ -2336,6 +2345,8 @@ void triggerThird_HondaD17(void)
   curTime3 = micros();
   curGap3 = curTime3 - toothLastThirdToothTime;
 
+  Serial3.print("                                                  3rdCam ");
+
   //Safety check for initial startup
   if( (toothLastThirdToothTime == 0) )
   { 
@@ -2344,27 +2355,32 @@ void triggerThird_HondaD17(void)
   }
 
   if ( curGap3 < triggerThirdFilterTime ) 
-  { return; } // Pulses less than minimum possible, means we've got noise
+  { 
+    Serial3.println(" &&&&& CAM3 NOISE &&&&& ");
+    return; 
+  } // Pulses less than minimum possible, means we've got noise
 
   thirdToothCount++;
+
+
+ // Serial3.print("                                                   TC:"); Serial3.print(thirdToothCount); Serial3.print(" Rev:");Serial3.print(revolutionOne?1:0);
 
   if( thirdToothCount > 4)
   {
     // only 4 teeth we count on the cam (we ignore the small tooth we use for sync), if we've seen more than 5 we've lost sync         
     thirdToothCount = 0;
   }
-  else if( thirdToothCount == 1 && revolutionOne == 1 && configPage6.vvtEnabled > 0)
+  else if( thirdToothCount == 4 && revolutionOne == 1 && configPage10.vvt2Enabled > 0)
   {
     // found the tooth we trigger VVT from - so Record the VVT Angle
-    if( configPage6.vvtEnabled > 0  )
-    {
+    Serial3.print("  ** VVT2Enabled **  Angle - ") ;  
     int16_t curAngle;
     curAngle = getCrankAngle();
     while(curAngle > 360) { curAngle -= 360; }
     curAngle -= configPage4.triggerAngle; //Value at TDC
     if( configPage6.vvtMode == VVT_MODE_CLOSED_LOOP ) { curAngle -= configPage4.vvt2CL0DutyAng; }    
     currentStatus.vvt2Angle = ANGLE_FILTER( (curAngle << 1), configPage4.ANGLEFILTER_VVT, currentStatus.vvt2Angle);
-    }
+    Serial3.println(currentStatus.vvt2Angle);
   }
 
   triggerThirdFilterTime = curGap3 >> 4; //Set filter at ~6% of the current speed.

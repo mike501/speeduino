@@ -3301,7 +3301,7 @@ void initialiseTriggers(void)
 
       attachInterrupt(triggerInterrupt, triggerHandler, primaryTriggerEdge);
 
-      if(BIT_CHECK(decoderState, BIT_DECODER_HAS_SECONDARY)) { attachInterrupt(triggerInterrupt2, triggerSecondaryHandler, secondaryTriggerEdge); }
+      if(BIT_CHECK(decoderState, BIT_DECODER_HAS_SECONDARY) || configPage6.vvtEnabled > 0) { attachInterrupt(triggerInterrupt2, triggerSecondaryHandler, secondaryTriggerEdge); }
       if(configPage10.vvt2Enabled > 0) { attachInterrupt(triggerInterrupt3, triggerTertiaryHandler, tertiaryTriggerEdge); } // we only need this for vvt2, so not really needed if it's not used
 
       break;
