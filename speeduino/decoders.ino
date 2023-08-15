@@ -2315,16 +2315,16 @@ void triggerSec_HondaD17(void)
     secondaryToothCount++;
   }
 
-  if(secondaryToothCount == 1 && revolutionOne != 1)
+  if(secondaryToothCount == 1 && revolutionOne != 0)
   {
     // have to do this here instead of during the extra tooth as at 0 degrees VVT it clashes with the extra tooth on the crank. If done there we can't be certain what tooth is seen first
     // with the VVT code moving the relationship. Doing this here ensures we have definitely done the crank revolution code first.    
-    revolutionOne = 1; 
+    revolutionOne = 0; 
     BIT_SET(currentStatus.status3, BIT_STATUS3_HALFSYNC);
   }
 
 
-  if(secondaryToothCount == 2 && revolutionOne == 1 && configPage6.vvtEnabled > 0)
+  if(secondaryToothCount == 4 && revolutionOne == 1 && configPage6.vvtEnabled > 0)
   {
     //Record the VVT Angle
     int16_t curAngle;
@@ -2360,7 +2360,7 @@ void triggerThird_HondaD17(void)
     // only 4 teeth we count on the cam (we ignore the small tooth we use for sync), if we've seen more than 5 we've lost sync             
     thirdToothCount = 0;
   }
-  else if( thirdToothCount == 2 && revolutionOne == 1 && configPage10.vvt2Enabled > 0)
+  else if( thirdToothCount == 4 && revolutionOne == 1 && configPage10.vvt2Enabled > 0)
   {
     // found the tooth we trigger VVT from - so Record the VVT Angle 
     int16_t curAngle;
