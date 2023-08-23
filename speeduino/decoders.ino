@@ -2292,30 +2292,30 @@ void triggerSec_HondaD17(void)
 
   targetGap2 = (toothLastSecToothTime - toothLastMinusOneSecToothTime) >> 1; //If the time between the current tooth and the last is less than 50% we've got the extra tooth
   toothLastMinusOneSecToothTime = toothLastSecToothTime;
-  if( secondaryToothCount > 4)
-  {
-    // only 4 teeth we count on the cam (we ignore the small tooth we use for sync), if we've seen more than 4 we've lost sync
-    if(currentStatus.hasSync == true) 
-    {
-      BIT_SET(currentStatus.status3, BIT_STATUS3_HALFSYNC);
-    }
-  }
-
+  
   if (curGap2 < targetGap2) 
   {
     // found the extra tooth
-    secondaryToothCount = 0;
-    thirdToothCount = 0;
+    secondaryToothCount = 1;
+    thirdToothCount = 1;
     triggerSecFilterTime = 0; //This is used to prevent a condition where serious intermittent signals (Eg someone furiously plugging the sensor wire in and out) can leave the filter in an unrecoverable state
     BIT_CLEAR(currentStatus.status3, BIT_STATUS3_HALFSYNC);
   }
   else
   {
     triggerSecFilterTime = curGap2 >> 4; //Set filter at ~6% of the current speed. Filter can only be recalculated for the regular teeth, not the additional one.
+    if( secondaryToothCount > 4)
+    {
+      // only 4 teeth we count on the cam (we ignore the small tooth we use for sync), if we've seen more than 4 we've lost sync
+      if(currentStatus.hasSync == true) 
+      {
+        BIT_SET(currentStatus.status3, BIT_STATUS3_HALFSYNC);
+      }
+    }
     secondaryToothCount++;
   }
 
-  if(secondaryToothCount == 1 && revolutionOne != 0)
+  if(secondaryToothCount == 2 && revolutionOne != 0)
   {
     // have to do this here instead of during the extra tooth as at 0 degrees VVT it clashes with the extra tooth on the crank. If done there we can't be certain what tooth is seen first
     // with the VVT code moving the relationship. Doing this here ensures we have definitely done the crank revolution code first.    
