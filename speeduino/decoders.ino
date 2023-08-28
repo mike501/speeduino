@@ -2274,8 +2274,9 @@ void triggerPri_HondaD17(void)
 }
 
 
-//The 4+1 signal on the exhaust cam 
-void triggerSec_HondaD17(void) 
+//The 4+1 signal on the exhaust cam. Because this is the trigger cam, we need variables only available for secondary, therefore use secondary variables inside this code. 
+// However want VVT to be VVT2 so use VVT2 variables
+void triggerThird_HondaD17(void) 
 { 
   curTime2 = micros();
   curGap2 = curTime2 - toothLastSecToothTime;
@@ -2324,21 +2325,23 @@ void triggerSec_HondaD17(void)
   }
 
 
-  if(secondaryToothCount == 4 && revolutionOne == 1 && configPage6.vvtEnabled > 0)
+  if(secondaryToothCount == 4 && revolutionOne == 1 && configPage10.vvt2Enabled > 0) // uses vvt2 enabled
   {
     //Record the VVT Angle
     int16_t curAngle;
     curAngle = getCrankAngle();
     while(curAngle > 360) { curAngle -= 360; }
     curAngle -= configPage4.triggerAngle; //Value at TDC
-    if( configPage6.vvtMode == VVT_MODE_CLOSED_LOOP ) { curAngle -= configPage10.vvtCL0DutyAng; }
-    currentStatus.vvt1Angle = ANGLE_FILTER( (curAngle << 1), configPage4.ANGLEFILTER_VVT, currentStatus.vvt1Angle);
+    
+    // want this to be VVT2 hence the values here
+    if( configPage6.vvtMode == VVT_MODE_CLOSED_LOOP ) { curAngle -= configPage4.vvt2CL0DutyAng; }    
+    currentStatus.vvt2Angle = ANGLE_FILTER( (curAngle << 1), configPage4.ANGLEFILTER_VVT, currentStatus.vvt2Angle);
   }
   toothLastSecToothTime = curTime2;
 }
 
 //The 4 tooth signal on the inlet cam 
-void triggerThird_HondaD17(void) 
+void triggerSec_HondaD17(void) 
 { 
   curTime3 = micros();
   curGap3 = curTime3 - toothLastThirdToothTime;
@@ -2360,15 +2363,17 @@ void triggerThird_HondaD17(void)
     // only 4 teeth we count on the cam (we ignore the small tooth we use for sync), if we've seen more than 5 we've lost sync             
     thirdToothCount = 0;
   }
-  else if( thirdToothCount == 4 && revolutionOne == 1 && configPage10.vvt2Enabled > 0)
+  else if( thirdToothCount == 2 && configPage6.vvtEnabled > 0) // uses vvt1 enabled
   {
     // found the tooth we trigger VVT from - so Record the VVT Angle 
     int16_t curAngle;
     curAngle = getCrankAngle();
     while(curAngle > 360) { curAngle -= 360; }
     curAngle -= configPage4.triggerAngle; //Value at TDC
-    if( configPage6.vvtMode == VVT_MODE_CLOSED_LOOP ) { curAngle -= configPage4.vvt2CL0DutyAng; }    
-    currentStatus.vvt2Angle = ANGLE_FILTER( (curAngle << 1), configPage4.ANGLEFILTER_VVT, currentStatus.vvt2Angle);
+
+    // want this to be VVT1 hence the values here
+    if( configPage6.vvtMode == VVT_MODE_CLOSED_LOOP ) { curAngle -= configPage10.vvtCL0DutyAng; }
+    currentStatus.vvt1Angle = ANGLE_FILTER( (curAngle << 1), configPage4.ANGLEFILTER_VVT, currentStatus.vvt1Angle);
   }
 
   triggerThirdFilterTime = curGap3 >> 4; //Set filter at ~6% of the current speed.
