@@ -2324,19 +2324,6 @@ void triggerThird_HondaD17(void)
     BIT_SET(currentStatus.status3, BIT_STATUS3_HALFSYNC);
   }
 
-
-  if(secondaryToothCount == 4 && revolutionOne == 1 && configPage10.vvt2Enabled > 0) // uses vvt2 enabled
-  {
-    //Record the VVT Angle
-    int16_t curAngle;
-    curAngle = getCrankAngle();
-    while(curAngle > 360) { curAngle -= 360; }
-    curAngle -= configPage4.triggerAngle; //Value at TDC
-    
-    // want this to be VVT2 hence the values here
-    if( configPage6.vvtMode == VVT_MODE_CLOSED_LOOP ) { curAngle -= configPage4.vvt2CL0DutyAng; }    
-    currentStatus.vvt2Angle = ANGLE_FILTER( (curAngle << 1), configPage4.ANGLEFILTER_VVT, currentStatus.vvt2Angle);
-  }
   toothLastSecToothTime = curTime2;
 }
 
@@ -5757,4 +5744,4 @@ void triggerSetEndTeeth_RoverMEMS()
 
 }
 /** @} */
-/** @} */
+
