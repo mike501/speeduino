@@ -2176,7 +2176,6 @@ void triggerPri_HondaD17(void)
       //Extra tooth detected
       if( toothCurrentCount != triggerActualTeeth ) 
       { 
-          Serial3.print(" SyncLoss Crank");
           //This occurs when we've found the extra tooth but haven't seen 12 other teeth. This indicates a signal issue so we flag lost sync so this will attempt to resync on the next revolution.
           currentStatus.hasSync = false;
           BIT_CLEAR(currentStatus.status3, BIT_STATUS3_HALFSYNC); //No sync at all, so also clear HalfSync bit.
@@ -2189,7 +2188,6 @@ void triggerPri_HondaD17(void)
         // we have sync on the crank
         if(currentStatus.hasSync == false)
         {
-          Serial3.print (" Crank Sync");
           BIT_SET(currentStatus.status3, BIT_STATUS3_HALFSYNC); //Set HalfSync bit.
           currentStatus.hasSync = true;
         }
@@ -2199,7 +2197,6 @@ void triggerPri_HondaD17(void)
     {
       //Regular (not extra) tooth
       toothCurrentCount++; //Increment the tooth counter
-      Serial3.print(" TC "); Serial3.print(toothCurrentCount);
 
       setFilter(curGap);
       toothLastMinusOneToothTime = toothLastToothTime;
@@ -2209,7 +2206,6 @@ void triggerPri_HondaD17(void)
       if(toothCurrentCount == 1+triggerActualTeeth)
       {
         // seen enough teeth to say we've done a revolution of the crank
-        Serial3.print(" Revolution");
         toothCurrentCount = 1;
         if((currentStatus.hasSync == true) || BIT_CHECK(currentStatus.status3, BIT_STATUS3_HALFSYNC))
         {
@@ -2229,7 +2225,6 @@ void triggerPri_HondaD17(void)
           //If either fuel or ignition is sequential, only declare sync if the cam tooth has been seen OR if the missing wheel is on the cam
           if( secondaryToothCount > 1 ) // if we've seen some cam teeth assume we've got sync, if we haven't we'll say so in the cam code
           {
-            Serial3.print(" Full Sync");
             currentStatus.hasSync = true;
             BIT_CLEAR(currentStatus.status3, BIT_STATUS3_HALFSYNC); //the engine is fully synced so clear the Half Sync bit                
           }
@@ -2238,12 +2233,9 @@ void triggerPri_HondaD17(void)
         { //If nothing is using sequential, we have sync and also clear half sync bit
           currentStatus.hasSync = true;  
           BIT_CLEAR(currentStatus.status3, BIT_STATUS3_HALFSYNC);
-          Serial3.print(" Just Sync");
         } 
       }      
     }  
-
-    Serial3.println();
 
     //NEW IGNITION MODE
     if( (configPage2.perToothIgn == true) && (!BIT_CHECK(currentStatus.engine, BIT_ENGINE_CRANK)) ) 
@@ -2266,8 +2258,8 @@ void triggerPri_HondaD17(void)
   }
 }
 
-
 void triggerSec_HondaD17(void) { return; } //The 4+1 signal on the cam is yet to be supported. If this ever changes, update BIT_DECODER_HAS_SECONDARY in the setup() function
+
 uint16_t getRPM_HondaD17(void)
 {
    return stdGetRPM(360);
@@ -2362,7 +2354,6 @@ void triggerSec_HondaK20(void)
   curTime3 = micros();
   curGap3 = curTime3 - toothLastThirdToothTime;
 
-  Serial3.print(" Cam1 ");
   //Safety check for initial startup
   if( (toothLastThirdToothTime == 0) )
   { 
@@ -2374,20 +2365,16 @@ void triggerSec_HondaK20(void)
   { return; } // Pulses less than minimum possible, means we've got noise
 
   thirdToothCount++;
-  Serial3.print(" TC ");
-  Serial3.print(thirdToothCount);
-
+  
   if( thirdToothCount > 5)
   {
     // only 4 teeth we count on the cam but we start counting at 1 instead of 0 so use 5 in the test, 
     // if we've seen more than 5 we've looped round and are really seeing the first tooth of my next rotation
     // this code is for insurance as the cam+1 signal should reset the counter so we never get here
     thirdToothCount = 2;
-    Serial3.print(" Cam Rot");
   }
   if( thirdToothCount == 2 && configPage6.vvtEnabled > 0) // uses vvt1 enabled
   {
-    Serial3.print(" VVT rev-"); Serial3.print(revolutionOne);
     // found the tooth we trigger VVT from - so Record the VVT Angle 
     int16_t curAngle;
     curAngle = getCrankAngle();
@@ -2401,7 +2388,6 @@ void triggerSec_HondaK20(void)
 
   triggerThirdFilterTime = curGap3 >> 4; //Set filter at ~6% of the current speed.
   toothLastThirdToothTime = curTime3;
-  Serial3.println();
 }
 
 
@@ -2422,15 +2408,12 @@ void triggerThird_HondaK20(void)
   if ( curGap2 < triggerSecFilterTime ) 
   { return; } // Pulses less than minimum possible, means we've got noise
 
-  Serial3.print(" Cam3 ");
-
   targetGap2 = (toothLastSecToothTime - toothLastMinusOneSecToothTime) >> 1; //If the time between the current tooth and the last is less than 50% we've got the extra tooth
   toothLastMinusOneSecToothTime = toothLastSecToothTime;
   
   if (curGap2 < targetGap2) 
   {
     // found the extra tooth
-    Serial3.print(" Extra Tooth");
     secondaryToothCount = 1;
     thirdToothCount = 1;
     triggerSecFilterTime = 0; //This is used to prevent a condition where serious intermittent signals (Eg someone furiously plugging the sensor wire in and out) can leave the filter in an unrecoverable state
@@ -2449,8 +2432,6 @@ void triggerThird_HondaK20(void)
       }
     }
     secondaryToothCount++;
-    Serial3.print(" TC ");
-    Serial3.print(secondaryToothCount);
   }
 
   if(secondaryToothCount == 2 && revolutionOne != 0)
@@ -2459,10 +2440,8 @@ void triggerThird_HondaK20(void)
     // with the VVT code moving the relationship. Doing this here ensures we have definitely done the crank revolution code first.    
     revolutionOne = 0; 
     BIT_SET(currentStatus.status3, BIT_STATUS3_HALFSYNC);
-    Serial3.print(" Cam Rev");
     }
 
-  Serial3.println();
   toothLastSecToothTime = curTime2;
 }
 
