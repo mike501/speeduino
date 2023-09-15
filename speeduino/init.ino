@@ -3282,22 +3282,6 @@ void initialiseTriggers(void)
       attachInterrupt(triggerInterrupt2, triggerSecondaryHandler, secondaryTriggerEdge);
       break;
 
-    case DECODER_HONDA_D17:
-      triggerSetup_HondaD17();
-      triggerHandler = triggerPri_HondaD17;
-      triggerSecondaryHandler = triggerSec_HondaD17;
-      getRPM = getRPM_HondaD17;
-      getCrankAngle = getCrankAngle_HondaD17;
-      triggerSetEndTeeth = triggerSetEndTeeth_HondaD17;
-
-      if(configPage4.TrigEdge == 0) { primaryTriggerEdge = RISING; } // Attach the crank trigger wheel interrupt (Hall sensor drags to ground when triggering)
-      else { primaryTriggerEdge = FALLING; }
-      secondaryTriggerEdge = CHANGE;
-
-      attachInterrupt(triggerInterrupt, triggerHandler, primaryTriggerEdge);
-      attachInterrupt(triggerInterrupt2, triggerSecondaryHandler, secondaryTriggerEdge);
-      break;
-
 case DECODER_HONDA_D17:
       triggerSetup_HondaD17();
       triggerHandler = triggerPri_HondaD17;

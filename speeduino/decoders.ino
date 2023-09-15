@@ -2146,6 +2146,11 @@ void triggerSetup_HondaD17(void)
   BIT_CLEAR(decoderState, BIT_DECODER_HAS_SECONDARY);
 }
 
+
+// reusing variables to save storage space, these are used to do trigger filter to stop noise - can't do it normally due to the pattern needing to
+// detect an extra not missing tooth
+#define D17toothtriggerFilterTime     toothLastToothRisingTime
+
 void triggerPri_HondaD17(void)
 {
   curTime = micros();
@@ -2315,12 +2320,6 @@ Cam2 is 4+1 so used to detect sync for sequental. This is the Exhaust cam signal
 * @defgroup miata_99_05 Miata '99 to '05
 * @{
 */
-
-
-
-// reusing variables to save storage space, these are used to do trigger filter to stop noise - can't do it normally due to the pattern needing to
-// detect an extra not missing tooth
-#define D17toothtriggerFilterTime     toothLastToothRisingTime
 
 
 void triggerSetup_HondaK20(void)

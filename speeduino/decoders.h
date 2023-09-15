@@ -133,6 +133,11 @@ uint16_t getRPM_HondaD17(void);
 int getCrankAngle_HondaD17(void);
 void triggerSetEndTeeth_HondaD17(void);
 
+
+void triggerSetup_HondaK20 (void);
+void triggerSec_HondaK20 (void);
+void triggerThird_HondaK20 (void);
+
 void triggerSetup_Miata9905(void);
 void triggerPri_Miata9905(void);
 void triggerSec_Miata9905(void);
