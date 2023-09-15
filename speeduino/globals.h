@@ -1069,6 +1069,7 @@ struct config6 {
   byte launchPin : 6; ///< Launch (control ?) pin
   byte launchEnabled : 1; ///< Launch ...???... (control?) enabled
   byte launchHiLo : 1;  // 
+  
 
   byte lnchSoftLim;
   int8_t lnchRetard; //Allow for negative advance value (ATDC)
