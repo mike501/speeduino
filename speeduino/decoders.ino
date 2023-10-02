@@ -2348,8 +2348,8 @@ void triggerSetup_HondaK20(void)
   else { BIT_CLEAR(decoderState, BIT_DECODER_HAS_SECONDARY); }
 }
 
-//The 4 tooth signal on the inlet cam. This uses the variables for tertiary cam as its not the sync cam, but does VVT1 as its the only VVT signal
-void triggerSec_HondaK20(void) 
+//The 4 tooth signal on the inlet cam. This uses the variables for tertiary cam as its not the sync cam, but does VVT1 as its the only VVT signal on the engine
+void triggerCam_HondaK20VVT(void) 
 { 
   curTime3 = micros();
   curGap3 = curTime3 - toothLastThirdToothTime;
@@ -2391,9 +2391,15 @@ void triggerSec_HondaK20(void)
 }
 
 
-//The 4+1 signal on the exhaust cam. Because this is the trigger cam, we need variables only available for secondary, therefore use secondary variables inside this code. 
-// Does not have VVT
-void triggerThird_HondaK20(void) 
+// The 4+1 cam trigger signal for Honda K20 and D17 engines
+// When used for K20 
+// Connects to the exhaust cam on K20 / VR3 on Speeduino. Because this is the trigger cam, we need variables only available for secondary, therefore use 
+// secondary variables inside this code. Does not have VVT, that is on the other cam
+//
+// When used for D17
+// Connects to the inlet cam / VR2 on Speeduino. 
+//
+void triggerSync_HondaD17K20(void) 
 { 
   curTime2 = micros();
   curGap2 = curTime2 - toothLastSecToothTime;
@@ -2417,7 +2423,19 @@ void triggerThird_HondaK20(void)
     secondaryToothCount = 1;
     thirdToothCount = 1;
     triggerSecFilterTime = 0; //This is used to prevent a condition where serious intermittent signals (Eg someone furiously plugging the sensor wire in and out) can leave the filter in an unrecoverable state
-    BIT_CLEAR(currentStatus.status3, BIT_STATUS3_HALFSYNC);    
+    BIT_CLEAR(currentStatus.status3, BIT_STATUS3_HALFSYNC);  
+
+    if( configPage4.TrigPattern == DECODER_HONDA_D17 && configPage6.vvtEnabled > 0) // don't do this code if K20 engine, that uses VVT on different cam
+    {
+      // found the tooth we trigger VVT from - so Record the VVT Angle 
+      int16_t curAngle;
+      curAngle = getCrankAngle();
+      while(curAngle > 360) { curAngle -= 360; }
+      curAngle -= configPage4.triggerAngle; //Value at TDC
+
+      if( configPage6.vvtMode == VVT_MODE_CLOSED_LOOP ) { curAngle -= configPage10.vvtCL0DutyAng; }
+      currentStatus.vvt1Angle = ANGLE_FILTER( (curAngle << 1), configPage4.ANGLEFILTER_VVT, currentStatus.vvt1Angle);
+    }
   }
   else
   {

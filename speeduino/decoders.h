@@ -128,15 +128,15 @@ void triggerSetEndTeeth_Audi135(void);
 
 void triggerSetup_HondaD17(void);
 void triggerPri_HondaD17(void);
-void triggerSec_HondaD17(void);
+void triggerSync_HondaD17K20(void);
 uint16_t getRPM_HondaD17(void);
 int getCrankAngle_HondaD17(void);
 void triggerSetEndTeeth_HondaD17(void);
 
 
 void triggerSetup_HondaK20 (void);
-void triggerSec_HondaK20 (void);
-void triggerThird_HondaK20 (void);
+void triggerCam_HondaK20VVT (void);
+
 
 void triggerSetup_Miata9905(void);
 void triggerPri_Miata9905(void);
