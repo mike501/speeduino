@@ -2370,14 +2370,15 @@ void triggerCam_HondaK20VVT(void)
 
   thirdToothCount++;
   
-  if( thirdToothCount > 5)
+  if( thirdToothCount > 4)
   {
-    // only 4 teeth we count on the cam but we start counting at 1 instead of 0 so use 5 in the test, 
+    // only 4 teeth we count on the cam and we reset counting to zero when we see the extra cam tooth to rotate seeing '5th tooth, 
+    // which is really tooth 1 on the next 720 degree cycle. Should never see tooth 5 as the cam 4+1 should reset counter to 0
     // if we've seen more than 5 we've looped round and are really seeing the first tooth of my next rotation
     // this code is for insurance as the cam+1 signal should reset the counter so we never get here
-    thirdToothCount = 2;
+    thirdToothCount = 1;
   }
-  if( thirdToothCount == 2 && configPage6.vvtEnabled > 0) // uses vvt1 enabled
+  if( thirdToothCount == configPage4.StgCycles && configPage6.vvtEnabled > 0) // uses vvt1 enabled
   {
     // found the tooth we trigger VVT from - so Record the VVT Angle 
     int16_t curAngle;
@@ -2425,7 +2426,7 @@ void triggerSync_HondaD17K20(void)
   {
     // found the extra tooth
     secondaryToothCount = 1;
-    thirdToothCount = 1;
+    thirdToothCount = 0;
     triggerSecFilterTime = 0; //This is used to prevent a condition where serious intermittent signals (Eg someone furiously plugging the sensor wire in and out) can leave the filter in an unrecoverable state
     BIT_CLEAR(currentStatus.status3, BIT_STATUS3_HALFSYNC);  
 
