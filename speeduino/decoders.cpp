@@ -638,13 +638,38 @@ void triggerSec_missingTooth(void)
         }
         break;
 
-      case SEC_TRIGGER_SINGLE:
+/*      case SEC_TRIGGER_SINGLE:
         //Standard single tooth cam trigger
         revolutionOne = 1; //Sequential revolution reset
         triggerSecFilterTime = curGap2 >> 1; //Next secondary filter is half the current gap
         secondaryToothCount++;
         triggerRecordVVT1Angle ();
         break;
+*/
+ 
+      case SEC_TRIGGER_SINGLE:
+      // Designed for secondary decoders that have +1 extra teeth in the pattern. Doesn't matter how many teeth are in the decoder as long as its more than
+      // two equally spaced teeth (so would be written 2+1)
+        targetGap2 = (toothLastSecToothTime - toothLastMinusOneSecToothTime) >> 1; //If the time between the current tooth and the last is less than 50% we've got the extra tooth
+        toothLastMinusOneSecToothTime = toothLastSecToothTime;
+        
+        if (curGap2 < targetGap2) 
+        {
+          // found the extra tooth
+          secondaryToothCount = 1;
+          revolutionOne = 0;
+          triggerSecFilterTime = 0; //This is used to prevent a condition where serious intermittent signals (Eg someone furiously plugging the sensor wire in and out) can leave the filter in an unrecoverable state
+          BIT_CLEAR(currentStatus.status3, BIT_STATUS3_HALFSYNC);  
+          triggerRecordVVT1Angle ();
+        }
+        else
+        {
+          triggerSecFilterTime = curGap2 >> 4; //Set filter at ~6% of the current speed. Filter can only be recalculated for the regular teeth, not the additional one.
+          secondaryToothCount++;
+        }
+        break;
+
+      
 
       case SEC_TRIGGER_TOYOTA_3:
         // designed for Toyota VVTI (2JZ) engine - 3 triggers on the cam. 
