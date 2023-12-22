@@ -256,6 +256,8 @@
 #define SEC_TRIGGER_POLL    2
 #define SEC_TRIGGER_5_3_2   3
 #define SEC_TRIGGER_TOYOTA_3  4
+#define SEC_TRIGGER_PLUS_ONE  5
+
 
 #define ROTARY_IGN_FC       0
 #define ROTARY_IGN_FD       1
