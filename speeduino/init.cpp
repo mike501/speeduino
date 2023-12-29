@@ -3319,14 +3319,11 @@ case DECODER_HONDA_D17:
       else { secondaryTriggerEdge = FALLING; }
 
       attachInterrupt(triggerInterrupt, triggerHandler, primaryTriggerEdge);
-      if(BIT_CHECK(decoderState, BIT_DECODER_HAS_SECONDARY) || configPage6.vvtEnabled > 0) 
-      { 
-        attachInterrupt(triggerInterrupt2, triggerSecondaryHandler, secondaryTriggerEdge);  // used for sync / VVT        
-      }
+      attachInterrupt(triggerInterrupt2, triggerSecondaryHandler, secondaryTriggerEdge);  // used for sync / VVT        
       break;
 
      case DECODER_HONDA_K20:
-      triggerSetup_HondaK20();
+      triggerSetup_HondaD17();
       triggerHandler = triggerPri_HondaD17;
       triggerSecondaryHandler = triggerCam_HondaK20VVT;
       triggerTertiaryHandler = triggerSync_HondaD17K20;
@@ -3344,7 +3341,7 @@ case DECODER_HONDA_D17:
 
       attachInterrupt(triggerInterrupt, triggerHandler, primaryTriggerEdge);
 
-      if(BIT_CHECK(decoderState, BIT_DECODER_HAS_SECONDARY) || configPage6.vvtEnabled > 0) 
+      if(configPage6.vvtEnabled > 0) 
       { 
         attachInterrupt(triggerInterrupt2, triggerSecondaryHandler, secondaryTriggerEdge);  // used for VVT
         attachInterrupt(triggerInterrupt3, triggerTertiaryHandler, tertiaryTriggerEdge); // needed for cam sync signal
