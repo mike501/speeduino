@@ -2225,16 +2225,12 @@ void triggerPri_HondaD17(void)
       //Regular (not extra) tooth
       toothCurrentCount++; //Increment the tooth counter
 
-      if(toothCurrentCount == 1+triggerActualTeeth)
+      if(toothCurrentCount == 1+triggerActualTeeth && currentStatus.hasSync == true)
       {
         // seen enough teeth to say we've done a revolution of the crank
         toothCurrentCount = 1;
-        if((currentStatus.hasSync == true) || BIT_CHECK(currentStatus.status3, BIT_STATUS3_HALFSYNC))
-        {
-          currentStatus.startRevolutions++; //Counter
-        }
-        else { currentStatus.startRevolutions = 0; }
-        
+        currentStatus.startRevolutions++; 
+       
         revolutionOne = !revolutionOne;   
         toothOneMinusOneTime = toothOneTime;
         toothOneTime = curTime;
@@ -2259,8 +2255,10 @@ void triggerPri_HondaD17(void)
       {
         // Lost sync - don't reset the tooth counter, let the system find the +1 tooth and reset on that
         // should be impossible to get here but capture just in case
-          currentStatus.hasSync = false;  
-          BIT_CLEAR(currentStatus.status3, BIT_STATUS3_HALFSYNC);
+        currentStatus.hasSync = false;  
+        BIT_CLEAR(currentStatus.status3, BIT_STATUS3_HALFSYNC);
+        currentStatus.syncLossCounter++; 
+        currentStatus.startRevolutions = 0;
       }      
       setFilter(curGap);
       toothLastMinusOneToothTime = toothLastToothTime;
@@ -2443,7 +2441,10 @@ void triggerSync_HondaD17K20(void)
       // only 4 teeth we count on the cam (we ignore the small tooth we use for sync), but we start with tooth 1 not 0 if we've seen more than 5 we've lost sync
       // don't reset the toothcounter as thats done when we find the +1 tooth
       if(currentStatus.hasSync == true) 
-      { BIT_SET(currentStatus.status3, BIT_STATUS3_HALFSYNC); }
+      { 
+        BIT_SET(currentStatus.status3, BIT_STATUS3_HALFSYNC); 
+        currentStatus.syncLossCounter++; 
+      }
     }    
     secondaryToothCount++;
   }
