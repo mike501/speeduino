@@ -1002,6 +1002,77 @@ void triggerSetEndTeeth_DualWheel(void)
 }
 /** @} */
 
+/** Small tooth - Reuses most of Dual wheel, has primary and secondary sensor on the same wheel, detects the length of a smaller tooth to identify the unique point on the wheel
+  * Due to using rising and falling edge on the same wheel this can only work with Hall or Opital sensors that can track state change both ways. Will not work with VR sensor.
+  * Note: There can be no missing teeth on the wheel.
+  * Ratio of normal tooth to small tooth is small tooth being 66% of full tooth, cut off for detection is 85%. This limits how fast the engine can change speed between tooth 
+  * detection. Code is designed for Ford TFI V8
+  * 
+* @defgroup dec_small Small Tooth
+* @{
+*/
+
+/** Small Tooth Secondary.
+ * 
+ * */
+
+// decoder only works on leading edge detection & CAN NOT Work with VR sensor due to needing to sense change events and reliably read status change from low to high and high to low
+// reuse variables for TFI decoder
+#define toothStart curTime3
+#define toothDuration curGap3
+#define toothDurationFilter toothLastThirdToothTime
+#define ToBeDefined1_ulong triggerThirdFilterTime
+#define ToBeDefined2_uint thirdToothCount
+
+void triggerPri_SmallTooth(void)
+{
+  if( READ_PRI_TRIGGER() == HIGH )
+  {
+    triggerPri_DualWheel();
+  }
+  else
+  {
+    triggerSec_SmallTooth();
+  }
+}
+
+
+
+void triggerSec_SmallTooth(void)
+{
+  curTime2 = micros();
+  curGap2 = curTime2 - toothLastSecToothTime;
+
+  if ( curGap2 >= triggerSecFilterTime )
+  {
+    toothLastSecToothTime = curTime2;
+    triggerSecFilterTime = curGap2 >> 2; //Set filter at 25% of the current speed
+
+    // identify if the tooth we've just seen is a normal sized tooth or a small tooth
+    toothDuration = curTime2 - curTime; // curTime is set on reading the start of the tooth, this is triggered at the end so curTime2 - curTime = tooth duration.
+    if ( toothDuration < toothDurationFilter) 
+    {
+      // we've found a small tooth, set tooth counter to max teeth, this means the next tooth is max+1 which loops round to being tooth 1
+      toothCurrentCount = configPage4.triggerTeeth;
+      currentStatus.hasSync = true;    
+      revolutionOne = 1; //Sequential revolution reset            
+    }
+    else
+    {
+      // normal sized tooth        
+      toothDurationFilter = (toothDuration >>1) + (toothDuration >>2)+ (toothDuration >>4)+ (toothDuration >>5); // 84% filter.
+    }      
+  }
+  else 
+  {
+    triggerSecFilterTime = (revolutionTime / configPage4.triggerTeeth) >> 2; //Set filter at 25% of the current speed. This needs to be performed here to prevent a situation where the RPM and triggerSecFilterTime get out of alignment and curGap2 never exceeds the filter value
+  } //Trigger filter
+}
+
+
+
+/** @} */
+
 /** Basic Distributor where tooth count is equal to the number of cylinders and teeth are evenly spaced on the cam.
 * No position sensing (Distributor is retained) so crank angle is
 * a made up figure based purely on the first teeth to be seen.

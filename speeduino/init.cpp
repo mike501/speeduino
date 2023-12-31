@@ -3663,6 +3663,22 @@ void initialiseTriggers(void)
       break;   
 
 
+    case DECODER_SMALLTOOTH:
+      triggerSetup_DualWheel();
+      triggerHandler = triggerPri_SmallTooth;
+      //triggerSecondaryHandler = triggerSec_SmallTooth;
+      getRPM = getRPM_DualWheel;
+      getCrankAngle = getCrankAngle_DualWheel;
+      triggerSetEndTeeth = triggerSetEndTeeth_DualWheel;
+
+      primaryTriggerEdge = CHANGE;  // Attach the crank trigger wheel interrupt can only use Hall or opitical trigger on rising edge
+      //secondaryTriggerEdge = FALLING; // Attach the crank trigger wheel interrupt can only use Hall or opitical trigger on falling edge to detect short tooth
+
+      attachInterrupt(triggerInterrupt, triggerHandler, primaryTriggerEdge);
+      //attachInterrupt(triggerInterrupt, triggerSecondaryHandler, secondaryTriggerEdge);
+      break;
+
+
     default:
       triggerHandler = triggerPri_missingTooth;
       getRPM = getRPM_missingTooth;
