@@ -3237,8 +3237,8 @@ void initialiseTriggers(void)
       getCrankAngle = getCrankAngle_missingTooth;
       triggerSetEndTeeth = triggerSetEndTeeth_missingTooth;
 
-      primaryTriggerEdge = CHANGE; } // Attach the crank trigger wheel interrupt (Hall sensor drags to ground when triggering) - must be hall or optical, can't be VR
-      
+      if(configPage4.TrigEdge == 0) { primaryTriggerEdge = RISING; } // Attach the crank trigger wheel interrupt (Hall sensor drags to ground when triggering)
+      else { primaryTriggerEdge = FALLING; }
       if(configPage4.TrigEdgeSec == 0) { secondaryTriggerEdge = RISING; }
       else { secondaryTriggerEdge = FALLING; }
       if(configPage10.TrigEdgeThrd == 0) { tertiaryTriggerEdge = RISING; }
