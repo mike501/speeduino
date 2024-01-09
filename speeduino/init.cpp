@@ -3311,7 +3311,7 @@ case DECODER_HONDA_D17:
       
       getRPM = getRPM_missingTooth;
       getCrankAngle = getCrankAngle_missingTooth;
-      triggerSetEndTeeth = triggerSetEndTeeth_missingTooth;
+      triggerSetEndTeeth = triggerSetEndTeeth_DualWheel;
 
       if(configPage4.TrigEdge == 0) { primaryTriggerEdge = RISING; } // Attach the crank trigger wheel interrupt (Hall sensor drags to ground when triggering)
       else { primaryTriggerEdge = FALLING; }
@@ -3330,7 +3330,7 @@ case DECODER_HONDA_D17:
       
       getRPM = getRPM_missingTooth;
       getCrankAngle = getCrankAngle_missingTooth;
-      triggerSetEndTeeth = triggerSetEndTeeth_missingTooth;
+      triggerSetEndTeeth = triggerSetEndTeeth_DualWheel;
 
       if(configPage4.TrigEdge == 0) { primaryTriggerEdge = RISING; } // Attach the crank trigger wheel interrupt (Hall sensor drags to ground when triggering)
       else { primaryTriggerEdge = FALLING; }
@@ -3341,9 +3341,12 @@ case DECODER_HONDA_D17:
 
       attachInterrupt(triggerInterrupt, triggerHandler, primaryTriggerEdge);
 
-      if(configPage6.vvtEnabled > 0) 
+      if( configPage6.vvtEnabled > 0)
       { 
         attachInterrupt(triggerInterrupt2, triggerSecondaryHandler, secondaryTriggerEdge);  // used for VVT
+      }
+      if( configPage4.sparkMode == IGN_MODE_SEQUENTIAL || configPage2.injLayout == INJ_SEQUENTIAL)
+      {
         attachInterrupt(triggerInterrupt3, triggerTertiaryHandler, tertiaryTriggerEdge); // needed for cam sync signal
       }
       break;
