@@ -3309,8 +3309,8 @@ case DECODER_HONDA_D17:
       triggerHandler = triggerPri_HondaD17;
       triggerSecondaryHandler = triggerSync_HondaD17K20; 
       
-      getRPM = getRPM_missingTooth;
-      getCrankAngle = getCrankAngle_missingTooth;
+      getRPM = getRPM_DualWheel;
+      getCrankAngle = getCrankAngle_DualWheel;
       triggerSetEndTeeth = triggerSetEndTeeth_DualWheel;
 
       if(configPage4.TrigEdge == 0) { primaryTriggerEdge = RISING; } // Attach the crank trigger wheel interrupt (Hall sensor drags to ground when triggering)
@@ -3328,8 +3328,8 @@ case DECODER_HONDA_D17:
       triggerSecondaryHandler = triggerCam_HondaK20VVT;
       triggerTertiaryHandler = triggerSync_HondaD17K20;
       
-      getRPM = getRPM_missingTooth;
-      getCrankAngle = getCrankAngle_missingTooth;
+      getRPM = getRPM_DualWheel;
+      getCrankAngle = getCrankAngle_DualWheel;
       triggerSetEndTeeth = triggerSetEndTeeth_DualWheel;
 
       if(configPage4.TrigEdge == 0) { primaryTriggerEdge = RISING; } // Attach the crank trigger wheel interrupt (Hall sensor drags to ground when triggering)
